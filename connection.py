@@ -200,7 +200,75 @@ class GetProfileDataCommand(StructCommand, namedtuple('GetProfileDataCommandBase
 	SHAPE = ''
 
 	@staticmethod
-	def get_response(_simulator):
+	def get_response(simulator):
+		data = ''.join(profile.get_binary() for profile in simulator.profiles)
+		# TODO is this int32, or 2*int16 with unknown second value?
+		return struct.pack('<i', len(data)) + data
+
+PROFILE_FIELDS = [
+	('unknown_0', 'h'),
+	('sample_smooth', 'h', {14554: 1, 14546: 5}),
+	('unknown_1', 'h'),
+	('null_1', 'i'),
+	('null_2', 'h'),
+	('user_edited', 'b', {14: False, 5: True}),
+	('unknown_2', 'b'), # 0x80
+	('total_mass_lb', 'h'),
+	('wheel_circumference_mm', 'h'),
+	('null_3', 'h'),
+	('unknown_3', 'h'),
+	('null_4', 'h'),
+	('unknown_4', 'h'),
+	('unknown_5', 'h'),
+	('aero', 'f'),
+	('fric', 'f'),
+	('unknown_6', 'f'),
+	('unknown_7', 'f'),
+	('unknown_8', 'i'),
+	('wind_scaling_sqrt', 'f'),
+	('tilt_mult_10', 'h'),
+	('cal_mass_lb', 'h'),
+	('rider_mass_lb', 'h'),
+	('unknown_9', 'h'),
+	('ftp_per_kilo_ish', 'h'),
+	('ftp_over_095', 'h'),
+	('unknown_a', 'h'),
+	('speed_id', 'H'),
+	('cadence_id', 'H'),
+	('hr_id', 'H'),
+	('power_id', 'H'),
+	('speed_type', 'B'),
+	('cadence_type', 'B'),
+	('hr_type', 'B'),
+	('power_type', 'B'),
+	('power_smoothing_seconds', 'H'),
+	('unknown_c', 'h'),
+]
+class NewtonProfile(object):
+	__slots__ = zip(*PROFILE_FIELDS)[0]
+	FORMAT = '<' + ''.join(zip(*PROFILE_FIELDS)[1])
+	def __init__(self, *args):
+		for name, value in zip(self.__slots__, args):
+			setattr(self, name, value)
+
+	def get_binary(self):
+		print len(struct.pack(self.FORMAT, *[getattr(self, name) for name in self.__slots__]))
+		return struct.pack(self.FORMAT, *[getattr(self, name) for name in self.__slots__])
+
+	@classmethod
+	def from_binary_get_profile_result(cls, data):
+		length_part = data[:4]
+		# TODO is this int32 or int16*2?
+		length = struct.unpack('<i', length_part)[0]
+		assert length == 328, (length, repr(data))
+		return [cls.from_binary(data[4 + i * 82:86 + i * 82]) for i in range(4)]
+
+	@classmethod
+	def from_binary(cls, data):
+		return cls(*struct.unpack(cls.FORMAT, data))
+
+	def __str__(self):
+		return '{}({})'.format(self.__class__.__name__, ', '.join(repr(getattr(self, name)) for name in self.__slots__))
 
 @add_command
 class GetFileListCommand(StructCommand, namedtuple('GetFileListCommandBase', '')):
@@ -318,6 +386,7 @@ class NewtonSerialProtocol(object):
 class NewtonSimulator(object):
 	firmware_version = 6.12
 	serial_number = '-'.join(['00'] * 16)
+	profiles = NewtonProfile.from_binary_get_profile_result(INITIAL_PROFILE)
 	def __init__(self, connection=None):
 		if connection is None:
 			connection = NewtonSerialConnection()
