@@ -32,7 +32,7 @@ def add_packet(cls):
 
 class BasicPacket(Packet):
 	@classmethod
-	def __str__(cls):
+	def __repr__(cls):
 		return '{}()'.format(cls.__name__)
 
 	@property
@@ -77,7 +77,7 @@ class MessagePacket(Packet):
 		assert len(data) < 128
 		self._data = data
 
-	def __str__(self):
+	def __repr__(self):
 		return '{}({})'.format(self.__class__.__name__, self._data)
 
 	@property
@@ -264,7 +264,7 @@ class NewtonProfile(object):
 	def from_binary(cls, data):
 		return cls(*struct.unpack(cls.FORMAT, data))
 
-	def __str__(self):
+	def __repr__(self):
 		return '{}({})'.format(self.__class__.__name__, ', '.join(repr(getattr(self, name)) for name in self.__slots__))
 
 @add_command
