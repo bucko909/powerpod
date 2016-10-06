@@ -8,7 +8,6 @@ import serial
 
 LOGGER = logging.getLogger(__name__)
 
-
 class NewtonSerialConnection(serial.Serial):
 	def __init__(self, port='/dev/ttyUSB0', baudrate=115200):
 		super(NewtonSerialConnection, self).__init__(port=port, baudrate=baudrate)
@@ -22,7 +21,6 @@ class NewtonSerialConnection(serial.Serial):
 		return self
 
 	def __exit__(self, *args):
-		print args
 		self.close()
 
 class Packet(object):
@@ -252,7 +250,6 @@ class NewtonProfile(object):
 			setattr(self, name, value)
 
 	def get_binary(self):
-		print len(struct.pack(self.FORMAT, *[getattr(self, name) for name in self.__slots__]))
 		return struct.pack(self.FORMAT, *[getattr(self, name) for name in self.__slots__])
 
 	@classmethod
@@ -382,27 +379,3 @@ class NewtonSerialProtocol(object):
 			return False
 		LOGGER.info("wrote_message %r", message_part)
 		return True
-
-class NewtonSimulator(object):
-	firmware_version = 6.12
-	serial_number = '-'.join(['00'] * 16)
-	profiles = NewtonProfile.from_binary_get_profile_result(INITIAL_PROFILE)
-	def __init__(self, connection=None):
-		if connection is None:
-			connection = NewtonSerialConnection()
-		self.connection = connection
-		self.protocol = NewtonSerialProtocol(connection)
-
-	def run(self):
-		with self.connection:
-			while True:
-				message = self.protocol.read_message()
-				identifier = ord(message[0])
-				data = message[1:]
-				command = NewtonCommand.MAP[identifier].parse(data)
-				response = command.get_response(self)
-				self.protocol.write_message(response)
-
-if __name__ == '__main__':
-	logging.basicConfig(level=logging.INFO)
-	NewtonSimulator().run()
