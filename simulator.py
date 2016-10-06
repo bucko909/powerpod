@@ -4,6 +4,7 @@ import connection
 import logging
 
 
+
 class NewtonSimulator(threading.Thread):
 	firmware_version = 6.12
 	serial_number = '-'.join(['00'] * 16)
@@ -24,6 +25,7 @@ class NewtonSimulator(threading.Thread):
 
 	def init(self):
 		self.profiles = connection.NewtonProfile.from_binary_get_profile_result(INITIAL_PROFILE)
+		self.rides = [connection.NewtonRide.from_binary(INITIAL_RIDE)]
 		self.protocol = connection.NewtonSerialProtocol(self.serial_connection)
 
 	def run(self):

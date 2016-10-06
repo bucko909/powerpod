@@ -268,13 +268,107 @@ class NewtonProfile(object):
 		return '{}({})'.format(self.__class__.__name__, ', '.join(repr(getattr(self, name)) for name in self.__slots__))
 
 @add_command
+class GetFileCommand(StructCommand, namedtuple('GetFileCommandBase', 'ride_number')):
+	IDENTIFIER = 0x20
+	SHAPE = '<h'
+
+	def get_response(self, simulator):
+		return simulator.rides[self.ride_number].get_binary()
+
+RIDE_FIELDS = [
+	('unknown_0', '14s'),
+	('aero', 'f'),
+	('fric', 'f'),
+	('unknown_1', '28s'),
+	('Cm', 'f'),
+	('unknown_2', '2s'),
+	('wind_scaling_sqrt', 'f'),
+	('unknown_3', '22s')
+]
+class NewtonRide(object):
+	__slots__ = zip(*RIDE_FIELDS)[0] + ('data',)
+	FORMAT = '<' + ''.join(zip(*RIDE_FIELDS)[1])
+	def __init__(self, *args):
+		for name, value in zip(self.__slots__, args):
+			setattr(self, name, value)
+
+	@classmethod
+	def from_binary(cls, data):
+		fixed_part = data[:82]
+		data_part = data[82:]
+		data = map(NewtonRideData.from_binary, (data_part[x:x+15] for x in range(0, len(data_part), 15)))
+		return cls(*(struct.unpack(cls.FORMAT, fixed_part) + (data,)))
+
+	def get_binary(self):
+		fixed_part = struct.pack(self.FORMAT, *[getattr(self, name) for name in self.__slots__[:-1]])
+		data_part = ''.join(map(NewtonRideData.get_binary, self.data))
+		return fixed_part + data_part
+
+	def get_header(self):
+		return '\x11\x00\x06\x12\x03\x18\x09\x1e\xe0\x07\x27\xde\x77\x47'
+
+	def __repr__(self):
+		return '{}({})'.format(self.__class__.__name__, ', '.join(repr(getattr(self, name)) for name in self.__slots__))
+
+RIDE_DATA_FIELDS = [
+	('elevation_feet', 16),
+	('cadence', 8),
+	('heart_rate', 8),
+	('temperature_farenheit_plus_132', 8),
+	('unknown_0', 9),
+	('tilt_times_10', 10),
+	('speed_mph_times_10', 10),
+	('unknown_1', 2),
+	('wind_speed_mph_times_10_maybe', 8),
+	('power_watts', 11),
+	('unknown_2', 11),
+	('acceleration_maybe', 10),
+	('unknwon_3', 9),
+]
+assert sum(x[1] for x in RIDE_DATA_FIELDS) == 15 * 8
+DECODE_FIFTEEN_BYTES = '{:08b}' * 15
+ENCODE_FIFTEEN_BYTES = ''.join('{:0%sb}' % (size,) for _name, size in RIDE_DATA_FIELDS)
+class NewtonRideData(object):
+	__slots__ = zip(*RIDE_DATA_FIELDS)[0]
+	def __init__(self, *args):
+		for name, value in zip(self.__slots__, args):
+			setattr(self, name, value)
+
+	@classmethod
+	def from_binary(cls, data):
+		binary = DECODE_FIFTEEN_BYTES.format(*struct.unpack('15B', data))
+		vals = []
+		start = 0
+		for _name, size in RIDE_DATA_FIELDS:
+			value = int(binary[start:start+size], 2)
+			start += size
+			if value & (1 << (size - 1)):
+				value -= 1 << size
+			vals.append(value)
+		return cls(*vals)
+
+	def get_binary(self):
+		vals = []
+		for name, size in RIDE_DATA_FIELDS:
+			value = getattr(self, name)
+			if value < 0:
+				value += 2 << size
+			vals.append(value)
+		binary = ENCODE_FIFTEEN_BYTES.format(*vals)
+		chopped = [int(binary[x:x+8], 2) for x in range(0, 15*8, 8)]
+		return struct.pack('15B', *chopped)
+
+	def __repr__(self):
+		return '{}({})'.format(self.__class__.__name__, ', '.join(repr(getattr(self, name)) for name in self.__slots__))
+
+@add_command
 class GetFileListCommand(StructCommand, namedtuple('GetFileListCommandBase', '')):
 	IDENTIFIER = 0x21
 	SHAPE = ''
 
 	@staticmethod
-	def get_response(_simulator):
-		return '\x00\x00'
+	def get_response(simulator):
+		return struct.pack('<h', len(simulator.rides)) + ''.join(ride.get_header() for ride in simulator.rides)
 
 @add_command
 class UnknownCommand(StructCommand, namedtuple('UnknownCommandBase', '')):
