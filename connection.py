@@ -514,7 +514,7 @@ class NewtonSerialProtocol(object):
 			if conversation[-1].terminal:
 				self.write_packet(CommandAckPacket())
 				message = ''.join(part.data for part in message_parts)
-				LOGGER.info("read_message %r", message)
+				LOGGER.debug("read_message %r", message)
 				return message
 			conversation = []
 
@@ -546,5 +546,5 @@ class NewtonSerialProtocol(object):
 			LOGGER.warning("unexpected_write_ack %r", packet)
 			self.write_packet(InterruptPacket())
 			return False
-		LOGGER.info("wrote_message %r", message_part)
+		LOGGER.debug("wrote_message %r", message_part)
 		return True

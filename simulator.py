@@ -3,6 +3,8 @@ import ipdb
 import connection
 import logging
 
+LOGGER = logging.getLogger(__name__)
+
 
 
 class NewtonSimulator(threading.Thread):
@@ -29,6 +31,7 @@ class NewtonSimulator(threading.Thread):
 		self.protocol = connection.NewtonSerialProtocol(self.serial_connection)
 
 	def run(self):
+		last_identifier = 0x09 # skip first firmware
 		with self.serial_connection:
 			while True:
 				if self.reload:
@@ -38,11 +41,18 @@ class NewtonSimulator(threading.Thread):
 				identifier = ord(message[0])
 				data = message[1:]
 				command = connection.NewtonCommand.MAP[identifier].parse(data)
+				if (identifier, last_identifier) in [(0x09, 0x0e), (0x0e, 0x09)]:
+					log = LOGGER.debug
+					last_identifier = identifier
+				else:
+					log = LOGGER.info
+				log("<- %r", command)
 				response = command.get_response(self)
+				log("-> %r", str(response)[:200])
 				self.protocol.write_message(response)
 
 if __name__ == '__main__':
-	logging.basicConfig() #level=logging.INFO)
+	logging.basicConfig(level=logging.INFO)
 	sim = NewtonSimulator()
 	sim.setDaemon(True)
 	sim.start()
