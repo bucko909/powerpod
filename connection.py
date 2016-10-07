@@ -306,57 +306,132 @@ class NewtonRide(object):
 
 	def get_header(self):
 		return '\x11\x00\x06\x12\x03\x18\x09\x1e\xe0\x07\x27\xde\x77\x47'
+		#return '\x11\x00\x06\x12\x03\x18\x09\x1e\xe0\x07\x27\xde\x77\x47'
 
 	def __repr__(self):
 		return '{}({})'.format(self.__class__.__name__, ', '.join(repr(getattr(self, name)) for name in self.__slots__))
 
+def swap_endian(x):
+	return (x >> 8) + ((x & ((1 << 8) - 1)) << 8)
+
+def to_signed(x, bits):
+	if x & 1 << (bits - 1):
+		return x - (1 << bits)
+	else:
+		return x
+
+def to_unsigned(x, bits):
+	if x < 0:
+		return x + (1 << bits)
+	else:
+		return x
+
+TO_TIMES_TEN_SIGNED = lambda base: lambda x: to_unsigned(int(x * 10), base)
+FROM_TIMES_TEN_SIGNED = lambda base: lambda x: to_signed(x, base) * 0.1
+FROM_TIMES_TEN = lambda x: x * 0.1
+TO_TIMES_TEN = lambda x: int(x * 10)
+IDENTITY = lambda x: x
+
 RIDE_DATA_FIELDS = [
-	('elevation_feet', 16),
-	('cadence', 8),
-	('heart_rate', 8),
-	('temperature_farenheit_plus_132', 8),
-	('unknown_0', 9),
-	('tilt_times_10', 10),
-	('speed_mph_times_10', 10),
-	('unknown_1', 2),
-	('wind_speed_mph_times_10_maybe', 8),
-	('power_watts', 11),
-	('unknown_2', 11),
-	('acceleration_maybe', 10),
-	('unknwon_3', 9),
+	('elevation_feet', 16, lambda x: to_signed(swap_endian(x), 16), lambda x: swap_endian(to_unsigned(x, 16))),
+	('cadence', 8, IDENTITY, IDENTITY),
+	('heart_rate', 8, IDENTITY, IDENTITY),
+	('temperature_farenheit', 8, lambda x: x - 100, lambda x: x + 100),
+	('unknown_0', 9, IDENTITY, IDENTITY),
+	('tilt_times_10', 10, FROM_TIMES_TEN_SIGNED(10), TO_TIMES_TEN_SIGNED(10)),
+	('speed_mph', 10, FROM_TIMES_TEN, TO_TIMES_TEN),
+	#('unknown_1', 2, IDENTITY, IDENTITY),
+	#('wind_speed_mph_maybe', 8, FROM_TIMES_TEN, TO_TIMES_TEN),
+	('wind_tube_pressure', 10, IDENTITY, IDENTITY),
+	('power_watts', 11, IDENTITY, IDENTITY),
+	('unknown_2', 11, IDENTITY, IDENTITY),
+	('acceleration_maybe', 10, lambda x: to_signed(x, 10), lambda x: to_unsigned(x, 10)),
+	('unknown_3', 9, IDENTITY, IDENTITY), # if this is large, "drafting" becomes true
 ]
 assert sum(x[1] for x in RIDE_DATA_FIELDS) == 15 * 8
 DECODE_FIFTEEN_BYTES = '{:08b}' * 15
-ENCODE_FIFTEEN_BYTES = ''.join('{:0%sb}' % (size,) for _name, size in RIDE_DATA_FIELDS)
+ENCODE_FIFTEEN_BYTES = ''.join('{:0%sb}' % (fielddef[1],) for fielddef in RIDE_DATA_FIELDS)
+STROBE = 0
 class NewtonRideData(object):
 	__slots__ = zip(*RIDE_DATA_FIELDS)[0]
 	def __init__(self, *args):
+		global STROBE
+		STROBE += 1
 		for name, value in zip(self.__slots__, args):
 			setattr(self, name, value)
+		# speed=20.0, u_1=0,1,2,3 ws=16.0 => ws=0,0,15,36.9
+		# speed=10.0, u_1=0,1,2,3 ws=16.0 => ws=0,0,15,36.9
+		# speed=20.0, u_1=0,1,2,3 ws=10.0 => ws=0,0,0,33.0
+		# speed=20.0, u_1=0,1,2,3 ws=20.0 => ws=0,0,20.1,39.2
+		# speed=20.0, u_1=0,1,2,3 ws=21.0 => ws=0,0,21.1,39.7
+		# speed=20.0, u_1=0,1,2,3 ws=22.0 => ws=0,0,22.1,40.2
+		# speed=20.0, u_1=0,1,2,3 ws=23.0 => ws=0,0,23.1,40.8
+		# speed=20.0, u_1=0,1,2,3 ws=24.0 => ws=0,0,24.0,41.3
+		# speed=20.0, u_1=0,1,2,3 ws=25.0 => ws=0,0,24.9,41.9
+		#self.unknown_1 = (STROBE // 100) % 4
+		self.elevation_feet = 0 # STROBE - 1000
+		self.cadence = 100 + STROBE % 100
+		self.heart_rate = 100 + STROBE // 100
+		self.temperature_farenheit = -100 + (STROBE) % 200
+		self.unknown_0 = 0 #+ (STROBE // 30) % 100
+		self.tilt_times_10 = 0.0 #+ (STROBE // 50) % 10
+		self.speed_mph = 1.0 #+ (STROBE // 70) % 10
+		self.wind_tube_pressure = 700 + (STROBE // 400) * 10 # + (STROBE // 400)
+		self.power_watts = 100 #+ (STROBE // 110) % 100
+		self.unknown_2 = 0 #+ (STROBE // 130) % 100
+		self.acceleration_maybe = 0 #+ (STROBE // 170) % 100
+		self.unknown_3 = 4 # (STROBE // 10) % 255
+		# elevation_feet = 0, temperature_farenheit = 73, unknown_0 = 0, speed_mph = 20, power_watts = 100, unknown_2 = 0, acceleration_maybe = 0, unknown_3 = 0
+		# 0 -> 42.2
+		# TEMPERATURE has an effect. Increasing temperature increases wind speed!
+		# unknown_0, speed_mph, power_watts, unknown_2, acceleration_maybe seem to do nothing.
+		# messing with the last 9 bits seems to allow me to turn on 'drafting'
+
 
 	@classmethod
 	def from_binary(cls, data):
 		binary = DECODE_FIFTEEN_BYTES.format(*struct.unpack('15B', data))
 		vals = []
 		start = 0
-		for _name, size in RIDE_DATA_FIELDS:
+		for _name, size, decode, _encode in RIDE_DATA_FIELDS:
 			value = int(binary[start:start+size], 2)
 			start += size
-			if value & (1 << (size - 1)):
-				value -= 1 << size
-			vals.append(value)
+			vals.append(decode(value))
 		return cls(*vals)
 
 	def get_binary(self):
 		vals = []
-		for name, size in RIDE_DATA_FIELDS:
+		for name, size, _decode, encode in RIDE_DATA_FIELDS:
 			value = getattr(self, name)
-			if value < 0:
-				value += 2 << size
-			vals.append(value)
+			vals.append(encode(value))
 		binary = ENCODE_FIFTEEN_BYTES.format(*vals)
+		assert len(binary) == 15 * 8
 		chopped = [int(binary[x:x+8], 2) for x in range(0, 15*8, 8)]
 		return struct.pack('15B', *chopped)
+
+	@property
+	def elevation_metres(self):
+		return self.elevation_feet * 0.3048
+
+	@property
+	def pressure_kPa(self):
+		# Pascals
+		return 101.325 * (1 - (0.0065 * self.elevation_metres) / 288.15) ** (9.80665 * 0.0289644 / 8.31447 / 0.0065)
+
+	@property
+	def temperature_kelvin(self):
+		return (self.temperature_farenheit + 459.67) * 5 / 9
+
+	@property
+	def density(self):
+		# I say 0.8773 at 22.7778C/2516.7336m; they say 0.8768. Good enough...
+		return self.pressure_kPa * 1000 * 0.0289644 / 8.31447 / self.temperature_kelvin
+
+	@property
+	def wind_speed(self):
+		# Based on solving from CSV file
+		# TODO this ignores local pressure (which should live in 621)
+		return ((self.wind_tube_pressure - 621) / self.density * 13.6355) ** 0.5
 
 	def __repr__(self):
 		return '{}({})'.format(self.__class__.__name__, ', '.join(repr(getattr(self, name)) for name in self.__slots__))
