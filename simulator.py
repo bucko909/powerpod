@@ -6,6 +6,9 @@ import logging
 LOGGER = logging.getLogger(__name__)
 
 
+ORIGINAL_RIDE = open('ride_data_0', 'r').read()
+#INITIAL_RIDE = ORIGINAL_RIDE[:82+15*8] + ORIGINAL_RIDE[-15:]
+INITIAL_RIDE = ORIGINAL_RIDE
 
 class NewtonSimulator(threading.Thread):
 	firmware_version = 6.12
