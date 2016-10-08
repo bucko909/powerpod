@@ -337,16 +337,17 @@ RIDE_DATA_FIELDS = [
 	('cadence', 8, IDENTITY, IDENTITY),
 	('heart_rate', 8, IDENTITY, IDENTITY),
 	('temperature_farenheit', 8, lambda x: x - 100, lambda x: x + 100),
-	('unknown_0', 9, IDENTITY, IDENTITY),
+	('unknown_0', 9, IDENTITY, IDENTITY), # Don't know what this is. Seems to be a signed 9 bit number, but even making drastic changes to it doesn't really bother Isaac.
 	('tilt_times_10', 10, FROM_TIMES_TEN_SIGNED(10), TO_TIMES_TEN_SIGNED(10)),
 	('speed_mph', 10, FROM_TIMES_TEN, TO_TIMES_TEN),
 	#('unknown_1', 2, IDENTITY, IDENTITY),
 	#('wind_speed_mph_maybe', 8, FROM_TIMES_TEN, TO_TIMES_TEN),
-	('wind_tube_pressure', 10, IDENTITY, IDENTITY),
+	('wind_tube_pressure_difference', 10, IDENTITY, IDENTITY),
 	('power_watts', 11, IDENTITY, IDENTITY),
 	('unknown_2', 11, IDENTITY, IDENTITY),
 	('acceleration_maybe', 10, lambda x: to_signed(x, 10), lambda x: to_unsigned(x, 10)),
-	('unknown_3', 9, IDENTITY, IDENTITY), # if this is large, "drafting" becomes true
+	('stopped_flag_maybe', 1, IDENTITY, IDENTITY),
+	('unknown_3', 8, IDENTITY, IDENTITY), # if this is large, "drafting" becomes true
 ]
 assert sum(x[1] for x in RIDE_DATA_FIELDS) == 15 * 8
 DECODE_FIFTEEN_BYTES = '{:08b}' * 15
@@ -369,17 +370,18 @@ class NewtonRideData(object):
 		# speed=20.0, u_1=0,1,2,3 ws=24.0 => ws=0,0,24.0,41.3
 		# speed=20.0, u_1=0,1,2,3 ws=25.0 => ws=0,0,24.9,41.9
 		#self.unknown_1 = (STROBE // 100) % 4
-		self.elevation_feet = 0 # STROBE - 1000
-		self.cadence = 100 + STROBE % 100
+		self.elevation_feet = 0 # (STROBE // 200) * 100
+		self.cadence = 0 #100 + STROBE % 100
 		self.heart_rate = 100 + STROBE // 100
-		self.temperature_farenheit = -100 + (STROBE) % 200
-		self.unknown_0 = 0 #+ (STROBE // 30) % 100
-		self.tilt_times_10 = 0.0 #+ (STROBE // 50) % 10
-		self.speed_mph = 1.0 #+ (STROBE // 70) % 10
-		self.wind_tube_pressure = 700 + (STROBE // 400) * 10 # + (STROBE // 400)
+		self.temperature_farenheit = 73 # -100 + (STROBE) % 200
+		self.unknown_0 = (STROBE // 10) % 512
+		self.tilt_times_10 = -1.0 #+ (STROBE // 50) % 10
+		self.speed_mph = 20.0 - abs(STROBE % 100 - 50) * ((STROBE // 200) % 4) * 0.1
+		self.wind_tube_pressure_difference = 700 # + (STROBE // 400) * 10 # + (STROBE // 400)
 		self.power_watts = 100 #+ (STROBE // 110) % 100
 		self.unknown_2 = 0 #+ (STROBE // 130) % 100
-		self.acceleration_maybe = 0 #+ (STROBE // 170) % 100
+		self.acceleration_maybe = 50 if (STROBE // 100) % 2 == 0 else -50
+		self.stopped_flag_maybe = 1 if (STROBE % 71) == 0 else 0
 		self.unknown_3 = 4 # (STROBE // 10) % 255
 		# elevation_feet = 0, temperature_farenheit = 73, unknown_0 = 0, speed_mph = 20, power_watts = 100, unknown_2 = 0, acceleration_maybe = 0, unknown_3 = 0
 		# 0 -> 42.2
@@ -430,8 +432,7 @@ class NewtonRideData(object):
 	@property
 	def wind_speed(self):
 		# Based on solving from CSV file
-		# TODO this ignores local pressure (which should live in 621)
-		return ((self.wind_tube_pressure - 621) / self.density * 13.6355) ** 0.5
+		return ((self.wind_tube_pressure_difference - 621) / self.density * 13.6355) ** 0.5
 
 	def __repr__(self):
 		return '{}({})'.format(self.__class__.__name__, ', '.join(repr(getattr(self, name)) for name in self.__slots__))
