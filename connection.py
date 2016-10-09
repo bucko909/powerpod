@@ -300,16 +300,27 @@ class GetFileCommand(StructCommand, namedtuple('GetFileCommandBase', 'ride_numbe
 
 IDENTITY = lambda x: x
 RIDE_FIELDS = [
-	('unknown_0', '14s', IDENTITY, IDENTITY),
+	('unknown_0', '2s', IDENTITY, IDENTITY), # byte 0
+	('data_records', 'i', IDENTITY, IDENTITY), # byte 2
+	('cal_mass_lb', 'f', IDENTITY, IDENTITY), # byte 6, always integer?!
+	('energy_kJ', 'f', IDENTITY, IDENTITY), # byte 10
 	('aero', 'f', IDENTITY, IDENTITY), # byte 14
 	('fric', 'f', IDENTITY, IDENTITY), # byte 18
-	('unknown_1', '16s', IDENTITY, IDENTITY), # byte 22
+	('initial_elevation_feet', 'f', IDENTITY, IDENTITY), # byte 22, always integer?!
+	('elevation_gain_feet', 'f', IDENTITY, IDENTITY), # byte 26, always integer?!
+	('wheel_circumference_mm', 'f', IDENTITY, IDENTITY), # byte 30, always integer?!
+	('unknown_1', 'h', IDENTITY, IDENTITY), # byte 34
+	('unknown_2', 'h', IDENTITY, IDENTITY), # byte 36
 	('start_time', '8s', NewtonTime.from_binary, NewtonTime.get_binary), # byte 38
-	('unknown_2', '4s', IDENTITY, IDENTITY), # byte 46
+	('unknown_3', '4s', IDENTITY, IDENTITY), # byte 46
 	('Cm', 'f', IDENTITY, IDENTITY), # byte 50
-	('unknown_3', '2s', IDENTITY, IDENTITY), # byte 54
+	('unknown_4', '2s', IDENTITY, IDENTITY), # byte 54
 	('wind_scaling_sqrt', 'f', IDENTITY, IDENTITY), # byte 56
-	('unknown_4', '22s', IDENTITY, IDENTITY), # byte 60
+	('unknown_5', 'h', IDENTITY, IDENTITY), # byte 60, This may be initial value of unknown_0 in ride data?
+	('unknown_6', 'h', IDENTITY, IDENTITY), # byte 62, ???
+	('unknown_7', 'h', IDENTITY, IDENTITY), # byte 64, ???
+	('unknown_8', 'h', IDENTITY, IDENTITY), # byte 66, ??
+	('unknown_9', '14s', IDENTITY, IDENTITY), # byte 68
 	# byte 82
 ]
 RIDE_DECODE = zip(*RIDE_FIELDS)[2]
@@ -388,6 +399,7 @@ class NewtonRideData(object):
 		STROBE += 1
 		for name, value in zip(self.__slots__, args):
 			setattr(self, name, value)
+		return
 		# speed=20.0, u_1=0,1,2,3 ws=16.0 => ws=0,0,15,36.9
 		# speed=10.0, u_1=0,1,2,3 ws=16.0 => ws=0,0,15,36.9
 		# speed=20.0, u_1=0,1,2,3 ws=10.0 => ws=0,0,0,33.0
