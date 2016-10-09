@@ -132,17 +132,40 @@ class StructCommand(NewtonCommand):
 		return cls(*args)
 
 @add_command
-class SetTimeCommand(StructCommand, namedtuple('SetTimeCommandBase', 'unknown1 secs mins hours day month unknown2 year')):
+class SetTimeCommand(NewtonCommand, namedtuple('SetTimeCommandBase', 'unknown newton_time')):
 	# Is the unknown1 optional? I've seen this sent without it...
 	IDENTIFIER = 0x04
-	SHAPE = '<bbbbbbbh'
+	SHAPE = '<b8s'
 
-	def as_datetime(self):
-		return datetime.datetime(self.year, self.month, self.day, self.hours, self.mins, self.secs)
+	@classmethod
+	def parse(cls, data):
+		unknown, time_bin = struct.unpack(cls.SHAPE, data)
+		return cls(unknown, NewtonTime.from_binary(time_bin))
 
 	@staticmethod
 	def get_response(_simulator):
 		return None
+
+TIME_FIELDS = [
+	('secs', 'b'),
+	('mins', 'b'),
+	('hours', 'b'),
+	('day', 'b'),
+	('month', 'b'),
+	('unknown', 'b'),
+	('year', 'h'),
+]
+TIME_SHAPE = '<' + ''.join(zip(*TIME_FIELDS)[1])
+class NewtonTime(namedtuple('NewtonTime', zip(*TIME_FIELDS)[0])):
+	def as_datetime(self):
+		return datetime.datetime(self.year, self.month, self.day, self.hours, self.mins, self.secs)
+
+	@classmethod
+	def from_binary(cls, data):
+		return cls(*struct.unpack(TIME_SHAPE, data))
+
+	def get_binary(self):
+		return struct.pack(TIME_SHAPE, *self)
 
 @add_command
 class GetFileCountCommand(StructCommand, namedtuple('GetFileCountCommandBase', '')):
@@ -275,16 +298,22 @@ class GetFileCommand(StructCommand, namedtuple('GetFileCommandBase', 'ride_numbe
 	def get_response(self, simulator):
 		return simulator.rides[self.ride_number].get_binary()
 
+IDENTITY = lambda x: x
 RIDE_FIELDS = [
-	('unknown_0', '14s'),
-	('aero', 'f'),
-	('fric', 'f'),
-	('unknown_1', '28s'),
-	('Cm', 'f'),
-	('unknown_2', '2s'),
-	('wind_scaling_sqrt', 'f'),
-	('unknown_3', '22s')
+	('unknown_0', '14s', IDENTITY, IDENTITY),
+	('aero', 'f', IDENTITY, IDENTITY), # byte 14
+	('fric', 'f', IDENTITY, IDENTITY), # byte 18
+	('unknown_1', '16s', IDENTITY, IDENTITY), # byte 22
+	('start_time', '8s', NewtonTime.from_binary, NewtonTime.get_binary), # byte 38
+	('unknown_2', '4s', IDENTITY, IDENTITY), # byte 46
+	('Cm', 'f', IDENTITY, IDENTITY), # byte 50
+	('unknown_3', '2s', IDENTITY, IDENTITY), # byte 54
+	('wind_scaling_sqrt', 'f', IDENTITY, IDENTITY), # byte 56
+	('unknown_4', '22s', IDENTITY, IDENTITY), # byte 60
+	# byte 82
 ]
+RIDE_DECODE = zip(*RIDE_FIELDS)[2]
+RIDE_ENCODE = zip(*RIDE_FIELDS)[3]
 class NewtonRide(object):
 	__slots__ = zip(*RIDE_FIELDS)[0] + ('data',)
 	FORMAT = '<' + ''.join(zip(*RIDE_FIELDS)[1])
@@ -297,11 +326,11 @@ class NewtonRide(object):
 		fixed_part = data[:82]
 		data_part = data[82:]
 		data = map(NewtonRideData.from_binary, (data_part[x:x+15] for x in range(0, len(data_part), 15)))
-		return cls(*(struct.unpack(cls.FORMAT, fixed_part) + (data,)))
+		return cls(*([decode(val) for val, decode in zip(struct.unpack(cls.FORMAT, fixed_part), RIDE_DECODE)] + [data]))
 
 	def get_binary(self):
-		fixed_part = struct.pack(self.FORMAT, *[getattr(self, name) for name in self.__slots__[:-1]])
-		data_part = ''.join(map(NewtonRideData.get_binary, self.data))
+		fixed_part = struct.pack(self.FORMAT, *[encode(getattr(self, name)) for name, encode in zip(self.__slots__[:-1], RIDE_ENCODE)])
+		data_part = ''.join(x.get_binary() for x in self.data)
 		return fixed_part + data_part
 
 	def get_header(self):
@@ -330,7 +359,6 @@ TO_TIMES_TEN_SIGNED = lambda base: lambda x: to_unsigned(int(x * 10), base)
 FROM_TIMES_TEN_SIGNED = lambda base: lambda x: to_signed(x, base) * 0.1
 FROM_TIMES_TEN = lambda x: x * 0.1
 TO_TIMES_TEN = lambda x: int(x * 10)
-IDENTITY = lambda x: x
 
 RIDE_DATA_FIELDS = [
 	('elevation_feet', 16, lambda x: to_signed(swap_endian(x), 16), lambda x: swap_endian(to_unsigned(x, 16))),
@@ -392,6 +420,8 @@ class NewtonRideData(object):
 
 	@classmethod
 	def from_binary(cls, data):
+		if data.startswith('\xff\xff\xff\xff\xff\xff'):
+			return NewtonRideDataPaused.from_binary(data)
 		binary = DECODE_FIFTEEN_BYTES.format(*struct.unpack('15B', data))
 		vals = []
 		start = 0
@@ -436,6 +466,15 @@ class NewtonRideData(object):
 
 	def __repr__(self):
 		return '{}({})'.format(self.__class__.__name__, ', '.join(repr(getattr(self, name)) for name in self.__slots__))
+
+class NewtonRideDataPaused(namedtuple('NewtonRideDataPaused', 'tag newton_time unknown_3')):
+	@classmethod
+	def from_binary(cls, data):
+		tag, time_bin, unknown_3 = struct.unpack('<6s8sb', data)
+		return cls(tag, NewtonTime.from_binary(time_bin), unknown_3)
+
+	def get_binary(self):
+		return struct.pack('<6s8sb', self.tag, self.newton_time.get_binary(), self.unknown_3)
 
 @add_command
 class GetFileListCommand(StructCommand, namedtuple('GetFileListCommandBase', '')):
