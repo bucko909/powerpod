@@ -345,6 +345,9 @@ class NewtonRide(object):
 		return fixed_part + data_part
 
 	def get_header(self):
+		# \x11\x00
+		# newton time
+		# float encoding of ride length in metres.
 		return '\x11\x00\x06\x12\x03\x18\x09\x1e\xe0\x07\x27\xde\x77\x47'
 		#return '\x11\x00\x06\x12\x03\x18\x09\x1e\xe0\x07\x27\xde\x77\x47'
 
