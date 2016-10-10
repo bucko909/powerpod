@@ -302,25 +302,29 @@ IDENTITY = lambda x: x
 RIDE_FIELDS = [
 	('unknown_0', '2s', IDENTITY, IDENTITY), # byte 0
 	('data_records', 'i', IDENTITY, IDENTITY), # byte 2
-	('cal_mass_lb', 'f', IDENTITY, IDENTITY), # byte 6, always integer?!
+	('total_mass_lb', 'f', IDENTITY, IDENTITY), # byte 6, always integer?!, could be total mass
 	('energy_kJ', 'f', IDENTITY, IDENTITY), # byte 10
 	('aero', 'f', IDENTITY, IDENTITY), # byte 14
 	('fric', 'f', IDENTITY, IDENTITY), # byte 18
 	('initial_elevation_feet', 'f', IDENTITY, IDENTITY), # byte 22, always integer?!
 	('elevation_gain_feet', 'f', IDENTITY, IDENTITY), # byte 26, always integer?!
 	('wheel_circumference_mm', 'f', IDENTITY, IDENTITY), # byte 30, always integer?!
-	('unknown_1', 'h', IDENTITY, IDENTITY), # byte 34
-	('unknown_2', 'h', IDENTITY, IDENTITY), # byte 36
+	('unknown_1', 'h', IDENTITY, IDENTITY), # byte 34, 0x0f00 and 0x0e00 and 0x0e00 observed
+	('unknown_2', 'h', IDENTITY, IDENTITY), # byte 36, =1?
 	('start_time', '8s', NewtonTime.from_binary, NewtonTime.get_binary), # byte 38
-	('unknown_3', '4s', IDENTITY, IDENTITY), # byte 46
+	('pressure_Pa', 'i', IDENTITY, IDENTITY), # byte 46, appears to be pressure in Pa (observed range 100121-103175)
 	('Cm', 'f', IDENTITY, IDENTITY), # byte 50
-	('unknown_4', '2s', IDENTITY, IDENTITY), # byte 54
+	('unknown_3', 'h', IDENTITY, IDENTITY), # byte 54, 0x4900 and 0x4800 and 0x4500 observed # temperature?
 	('wind_scaling_sqrt', 'f', IDENTITY, IDENTITY), # byte 56
-	('unknown_5', 'h', IDENTITY, IDENTITY), # byte 60, This may be initial value of unknown_0 in ride data?
-	('unknown_6', 'h', IDENTITY, IDENTITY), # byte 62, ???
-	('unknown_7', 'h', IDENTITY, IDENTITY), # byte 64, ???
-	('unknown_8', 'h', IDENTITY, IDENTITY), # byte 66, ??
-	('unknown_9', '14s', IDENTITY, IDENTITY), # byte 68
+	('unknown_4', 'h', IDENTITY, IDENTITY), # byte 60, This may be initial value of unknown_0 in ride data? TODO riding tilt * 10? constant on same-day rides
+	('cal_mass_lb', 'h', IDENTITY, IDENTITY), # byte 62
+	('unknown_5', 'h', IDENTITY, IDENTITY), # byte 64, 0x5800 and 0x6000 and 0x5c00 observed
+	('unknown_6', 'h', IDENTITY, IDENTITY), # byte 66, ?? 0x6d06 == 1645 observed # kinda close to ratio pressure_Pa to pressure offset?
+	('unknown_7', 'i', IDENTITY, IDENTITY), # byte 68, 0x00000000 observed
+	('unknown_8', 'h', IDENTITY, IDENTITY), # byte 72, 0x2001 == 288 observed
+	('ref_pressure_Pa', 'i', IDENTITY, IDENTITY), # byte 74
+	('unknown_9', 'h', IDENTITY, IDENTITY), # byte 78 -- 0x0100 observed
+	('unknown_a', 'h', IDENTITY, IDENTITY), # byte 80 -- 0x3200 observed
 	# byte 82
 ]
 RIDE_DECODE = zip(*RIDE_FIELDS)[2]
@@ -348,7 +352,7 @@ class NewtonRide(object):
 		# \x11\x00
 		# newton time
 		# float encoding of ride length in metres.
-		return '\x11\x00\x06\x12\x03\x18\x09\x1e\xe0\x07\x27\xde\x77\x47'
+		return struct.pack('<h8sf', self.unknown_0, self.start_time.get_binary(), sum(x.speed_mph * 1602 / 3600. for x in self.data if isinstance(x, NewtonRideData)))
 		#return '\x11\x00\x06\x12\x03\x18\x09\x1e\xe0\x07\x27\xde\x77\x47'
 
 	def __repr__(self):
