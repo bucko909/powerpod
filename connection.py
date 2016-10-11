@@ -1,6 +1,7 @@
 from collections import namedtuple
 import logging
 import operator
+import re
 from socket import timeout
 import struct
 
@@ -319,7 +320,7 @@ RIDE_FIELDS = [
 	('riding_tilt_times_10', 'h', IDENTITY, IDENTITY), # byte 60
 	('cal_mass_lb', 'h', IDENTITY, IDENTITY), # byte 62
 	('unknown_5', 'h', IDENTITY, IDENTITY), # byte 64, 0x5800 and 0x6000 and 0x5c00 observed; multiplying by 10 doesn't do much...
-	('unknown_6', 'h', IDENTITY, IDENTITY), # byte 66, ?? 0x6d06 == 1645 observed # kinda close to ratio pressure_Pa to pressure offset?; multiply by 10 = no wind; divide by 10 = no wind. Add 10 = slightly weaker wind; subtract 10 = slightly stronger wind. So closer to just the pressure offset. TODO
+	('wind_tube_pressure_offset', 'h', lambda x: x - 1024, lambda x: x + 1024), # byte 66, this is a 10-bit signed negative number cast to unsigned and stored in a 16 bit int...
 	('unknown_7', 'i', IDENTITY, IDENTITY), # byte 68, 0x00000000 observed
 	('unknown_8', 'h', IDENTITY, IDENTITY), # byte 72, 0x2001 == 288 observed; doesn't seem to affect anything when multiplied by 2/4.
 	('ref_pressure_Pa', 'i', IDENTITY, IDENTITY), # byte 74
@@ -341,6 +342,12 @@ class NewtonRide(object):
 		print "pressure: %s" % self.pressure_Pa
 		#self.unknown_3 = self.unknown_3
 		print "unknown_3: %s" % self.unknown_3
+		# fit params:
+		# wind_tube_pressure_offset: (offset, multiplier), sum error, max error
+		# 1645: (621.0000179708004, 13.63466564565897), 0.001620135115702137, 5.8857352829733145e-05,
+		# 1500: (476.00156627595425, 13.634793721139431), 0.002741935014888952, 7.908769582343211e-05
+		# 1000: ((-23.994380608201027, 13.63477274775505), 0.2709849439383163, 0.20189296839687643
+		# So offset = unknown_6 - 1024
 
 	@classmethod
 	def from_binary(cls, data):
@@ -361,8 +368,61 @@ class NewtonRide(object):
 		return struct.pack('<h8sf', self.unknown_0, self.start_time.get_binary(), sum(x.speed_mph * 1602 / 3600. for x in self.data if isinstance(x, NewtonRideData)))
 		#return '\x11\x00\x06\x12\x03\x18\x09\x1e\xe0\x07\x27\xde\x77\x47'
 
+	def fit_to(self, csv):
+		pure_records = [x for x in self.data if not hasattr(x, 'newton_time')]
+		csv_data = [float(x['Wind Speed (km/hr)']) for x in csv.data]
+		compare = [(x, y) for x, y in zip(pure_records, csv_data) if y > 0]
+		get_errors = lambda offset, multiplier: [pure_record.wind_speed(offset, multiplier) - csv_datum for pure_record, csv_datum in compare]
+		dirs = [(x, y) for x in range(-1, 2) for y in range(-1, 2) if x != 0 or y != 0]
+		print dirs
+		skip = 500
+		best = current = (500, 10)
+		best_error = float('inf')
+		while skip > 0.000001:
+			new_best = False
+			for x, y in dirs:
+				test = (current[0] + x * skip, current[1] + y * skip * 0.02)
+				if test[1] < 0:
+					continue
+				error = sum(map(abs, get_errors(*test)))
+				#print test, error
+				if error < best_error:
+					best = test
+					best_error = error
+					new_best = True
+			if new_best:
+				current = best
+			else:
+				skip *= 0.5
+			#print best, skip, best_error
+		errors = get_errors(*best)
+		return best, best_error, max(map(abs, errors)), ["%0.4f" % (x,) for x in errors]
+
 	def __repr__(self):
 		return '{}({})'.format(self.__class__.__name__, ', '.join(repr(getattr(self, name)) for name in self.__slots__))
+
+CSV_FIELD = re.compile(r'(?:^|(?<=,))(?:[^,"]*|"(?:[^"\\]|\\.)*")(?:(?=,)|$)')
+CSV_FIELDS = lambda line: [x[1:-1] if len(x) > 2 and x[0] == '"' else x for x in CSV_FIELD.findall(line[:-1])]
+class IsaacCSV(object):
+	def __init__(self, header, data):
+		self.header = header
+		self.data = data
+
+	@classmethod
+	def from_filename(cls, filename):
+		fd = open(filename, 'r')
+		_blah = fd.readline() # boring header
+		_blah = fd.readline() # date
+		header_fields = CSV_FIELDS(fd.readline())
+		if header_fields[0:1] == ['', '<-Weight (kg) Energy (kJ)']:
+			header_fields[0:1] = ['Weight (kg)', 'Energy (kJ)']
+		header_data = CSV_FIELDS(fd.readline())
+		header = dict(zip(header_fields, header_data))
+		ride_fields = CSV_FIELDS(fd.readline())
+		data = []
+		for line in fd:
+			data.append(dict(zip(ride_fields, CSV_FIELDS(line))))
+		return cls(header, data)
 
 def swap_endian(x):
 	return (x >> 8) + ((x & ((1 << 8) - 1)) << 8)
@@ -484,10 +544,11 @@ class NewtonRideData(object):
 		# I say 0.8773 at 22.7778C/2516.7336m; they say 0.8768. Good enough...
 		return self.pressure_kPa * 1000 * 0.0289644 / 8.31447 / self.temperature_kelvin
 
-	@property
-	def wind_speed(self):
+	def wind_speed(self, offset=621, multiplier=13.6355):
 		# Based on solving from CSV file
-		return ((self.wind_tube_pressure_difference - 621) / self.density * 13.6355) ** 0.5
+		if self.wind_tube_pressure_difference < offset:
+			return 0.0
+		return ((self.wind_tube_pressure_difference - offset) / self.density * multiplier) ** 0.5
 
 	def __repr__(self):
 		return '{}({})'.format(self.__class__.__name__, ', '.join(repr(getattr(self, name)) for name in self.__slots__))
