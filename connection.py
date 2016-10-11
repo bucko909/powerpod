@@ -322,7 +322,7 @@ RIDE_FIELDS = [
 	('unknown_5', 'h', IDENTITY, IDENTITY), # byte 64, 0x5800 and 0x6000 and 0x5c00 observed; multiplying by 10 doesn't do much...
 	('wind_tube_pressure_offset', 'h', lambda x: x - 1024, lambda x: x + 1024), # byte 66, this is a 10-bit signed negative number cast to unsigned and stored in a 16 bit int...
 	('unknown_7', 'i', IDENTITY, IDENTITY), # byte 68, 0x00000000 observed
-	('unknown_8', 'h', IDENTITY, IDENTITY), # byte 72, 0x2001 == 288 observed; doesn't seem to affect anything when multiplied by 2/4.
+	('ref_temperature_kelvin', 'h', IDENTITY, IDENTITY), # byte 72, normally 288 (14.85C)
 	('ref_pressure_Pa', 'i', IDENTITY, IDENTITY), # byte 74
 	('unknown_9', 'h', IDENTITY, IDENTITY), # byte 78 -- 0x0100 observed
 	('unknown_a', 'h', IDENTITY, IDENTITY), # byte 80 -- 0x3200 observed
@@ -342,12 +342,6 @@ class NewtonRide(object):
 		print "pressure: %s" % self.pressure_Pa
 		#self.unknown_3 = self.unknown_3
 		print "unknown_3: %s" % self.unknown_3
-		# fit params:
-		# wind_tube_pressure_offset: (offset, multiplier), sum error, max error
-		# 1645: (621.0000179708004, 13.63466564565897), 0.001620135115702137, 5.8857352829733145e-05,
-		# 1500: (476.00156627595425, 13.634793721139431), 0.002741935014888952, 7.908769582343211e-05
-		# 1000: ((-23.994380608201027, 13.63477274775505), 0.2709849439383163, 0.20189296839687643
-		# So offset = unknown_6 - 1024
 
 	@classmethod
 	def from_binary(cls, data):
