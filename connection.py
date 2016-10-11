@@ -315,7 +315,7 @@ RIDE_FIELDS = [
 	('start_time', '8s', NewtonTime.from_binary, NewtonTime.get_binary), # byte 38
 	('pressure_Pa', 'i', IDENTITY, IDENTITY), # byte 46, appears to be pressure in Pa (observed range 100121-103175) # (setting, reported) = [(113175, 1113), (103175, 1014), (93175, 915), (203175, 1996), (1e9, 9825490), (2e9, 19650979), (-2e9, -19650979)]. Reported value in Isaac (hPa) is this divided by ~101.7761 or multiplied by 0.00982549. This isn't affected by truncating the ride at all. It /is/ affected by unknown_3; if I make unknown_3 -73 from 73, I get (-2e9, -19521083).
 	('Cm', 'f', IDENTITY, IDENTITY), # byte 50
-	('unknown_3', 'h', IDENTITY, IDENTITY), # byte 54, 0x4900 and 0x4800 and 0x4500 observed # temperature? It's not the /ride/ temperature at least. It affects pressure_Pa. Humidity?
+	('unknown_3', 'h', IDENTITY, IDENTITY), # byte 54, 0x4900 and 0x4800 and 0x4500 observed # temperature? It's not the /ride/ temperature at least. It affects displayed pressure. Humidity? Reference temperature somehow? Bigger values place us closer to pressure_Pa (but the ratio depends on pressure_Pa).
 	('wind_scaling_sqrt', 'f', IDENTITY, IDENTITY), # byte 56
 	('riding_tilt_times_10', 'h', IDENTITY, IDENTITY), # byte 60
 	('cal_mass_lb', 'h', IDENTITY, IDENTITY), # byte 62
@@ -342,6 +342,16 @@ class NewtonRide(object):
 		print "pressure: %s" % self.pressure_Pa
 		#self.unknown_3 = self.unknown_3
 		print "unknown_3: %s" % self.unknown_3
+		# pressure_Pa = 103175
+		# unknown_3 = 1, pressure = 1011mbar
+		# unknown_3 = 100, pressure = 1015mbar
+		# unknown_3 = 10000, pressure = 1031mbar
+		self.pressure_Pa = int(1e9)
+		# pressure_Pa = 1e9
+		# unknown_3 = 1, pressure = 9798543mbar
+		# unknown_3 = 100, pressure = 9833825mbar
+		# unknown_3 = 10000, pressure = 9991024mbar
+		self.unknown_3 = 10000
 
 	@classmethod
 	def from_binary(cls, data):
