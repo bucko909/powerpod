@@ -300,7 +300,7 @@ class GetFileCommand(StructCommand, namedtuple('GetFileCommandBase', 'ride_numbe
 
 IDENTITY = lambda x: x
 RIDE_FIELDS = [
-	('unknown_0', '2s', IDENTITY, IDENTITY), # byte 0
+	('unknown_0', 'h', IDENTITY, IDENTITY), # byte 0
 	('data_records', 'i', IDENTITY, IDENTITY), # byte 2
 	('total_mass_lb', 'f', IDENTITY, IDENTITY), # byte 6, always integer?!, could be total mass
 	('energy_kJ', 'f', IDENTITY, IDENTITY), # byte 10
@@ -309,19 +309,19 @@ RIDE_FIELDS = [
 	('initial_elevation_feet', 'f', IDENTITY, IDENTITY), # byte 22, always integer?!
 	('elevation_gain_feet', 'f', IDENTITY, IDENTITY), # byte 26, always integer?!
 	('wheel_circumference_mm', 'f', IDENTITY, IDENTITY), # byte 30, always integer?!
-	('unknown_1', 'h', IDENTITY, IDENTITY), # byte 34, 0x0f00 and 0x0e00 and 0x0e00 observed
+	('unknown_1', 'h', IDENTITY, IDENTITY), # byte 34, 0x0f00 and 0x0e00 and 0x0e00 observed; multiplying by 10 does nothing observable.
 	('unknown_2', 'h', IDENTITY, IDENTITY), # byte 36, =1?
 	('start_time', '8s', NewtonTime.from_binary, NewtonTime.get_binary), # byte 38
-	('pressure_Pa', 'i', IDENTITY, IDENTITY), # byte 46, appears to be pressure in Pa (observed range 100121-103175)
+	('pressure_Pa', 'i', IDENTITY, IDENTITY), # byte 46, appears to be pressure in Pa (observed range 100121-103175) # (setting, reported) = [(113175, 1113), (103175, 1014), (93175, 915), (203175, 1996), (1e9, 9825490), (2e9, 19650979), (-2e9, -19650979)]. Reported value in Isaac (hPa) is this divided by ~101.7761 or multiplied by 0.00982549. This isn't affected by truncating the ride at all. It /is/ affected by unknown_3; if I make unknown_3 -73 from 73, I get (-2e9, -19521083).
 	('Cm', 'f', IDENTITY, IDENTITY), # byte 50
-	('unknown_3', 'h', IDENTITY, IDENTITY), # byte 54, 0x4900 and 0x4800 and 0x4500 observed # temperature?
+	('unknown_3', 'h', IDENTITY, IDENTITY), # byte 54, 0x4900 and 0x4800 and 0x4500 observed # temperature? It's not the /ride/ temperature at least. It affects pressure_Pa. Humidity?
 	('wind_scaling_sqrt', 'f', IDENTITY, IDENTITY), # byte 56
-	('unknown_4', 'h', IDENTITY, IDENTITY), # byte 60, This may be initial value of unknown_0 in ride data? TODO riding tilt * 10? constant on same-day rides
+	('riding_tilt_times_10', 'h', IDENTITY, IDENTITY), # byte 60
 	('cal_mass_lb', 'h', IDENTITY, IDENTITY), # byte 62
-	('unknown_5', 'h', IDENTITY, IDENTITY), # byte 64, 0x5800 and 0x6000 and 0x5c00 observed
-	('unknown_6', 'h', IDENTITY, IDENTITY), # byte 66, ?? 0x6d06 == 1645 observed # kinda close to ratio pressure_Pa to pressure offset?
+	('unknown_5', 'h', IDENTITY, IDENTITY), # byte 64, 0x5800 and 0x6000 and 0x5c00 observed; multiplying by 10 doesn't do much...
+	('unknown_6', 'h', IDENTITY, IDENTITY), # byte 66, ?? 0x6d06 == 1645 observed # kinda close to ratio pressure_Pa to pressure offset?; multiply by 10 = no wind; divide by 10 = no wind. Add 10 = slightly weaker wind; subtract 10 = slightly stronger wind. So closer to just the pressure offset. TODO
 	('unknown_7', 'i', IDENTITY, IDENTITY), # byte 68, 0x00000000 observed
-	('unknown_8', 'h', IDENTITY, IDENTITY), # byte 72, 0x2001 == 288 observed
+	('unknown_8', 'h', IDENTITY, IDENTITY), # byte 72, 0x2001 == 288 observed; doesn't seem to affect anything when multiplied by 2/4.
 	('ref_pressure_Pa', 'i', IDENTITY, IDENTITY), # byte 74
 	('unknown_9', 'h', IDENTITY, IDENTITY), # byte 78 -- 0x0100 observed
 	('unknown_a', 'h', IDENTITY, IDENTITY), # byte 80 -- 0x3200 observed
@@ -335,6 +335,12 @@ class NewtonRide(object):
 	def __init__(self, *args):
 		for name, value in zip(self.__slots__, args):
 			setattr(self, name, value)
+		self.data_records = min(self.data_records, 100)
+		self.data = self.data[:100]
+		#self.pressure_Pa = 2000000000
+		print "pressure: %s" % self.pressure_Pa
+		#self.unknown_3 = self.unknown_3
+		print "unknown_3: %s" % self.unknown_3
 
 	@classmethod
 	def from_binary(cls, data):
