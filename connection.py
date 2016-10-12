@@ -315,15 +315,15 @@ RIDE_FIELDS = [
 	('start_time', '8s', NewtonTime.from_binary, NewtonTime.get_binary), # byte 38
 	('pressure_Pa', 'i', IDENTITY, IDENTITY), # byte 46, appears to be pressure in Pa (observed range 100121-103175) # (setting, reported) = [(113175, 1113), (103175, 1014), (93175, 915), (203175, 1996), (1e9, 9825490), (2e9, 19650979), (-2e9, -19650979)]. Reported value in Isaac (hPa) is this divided by ~101.7761 or multiplied by 0.00982549. This isn't affected by truncating the ride at all. It /is/ affected by unknown_3; if I make unknown_3 -73 from 73, I get (-2e9, -19521083).
 	('Cm', 'f', IDENTITY, IDENTITY), # byte 50
-	('unknown_3', 'h', IDENTITY, IDENTITY), # byte 54, 0x4900 and 0x4800 and 0x4500 observed # temperature? It's not the /ride/ temperature at least. It affects displayed pressure. Humidity? Reference temperature somehow? Bigger values place us closer to pressure_Pa (but the ratio depends on pressure_Pa).
+	('average_temperature_farenheit', 'h', IDENTITY, IDENTITY), # byte 54. Average of temperature records. Does not affect displayed temperature in Isaac. It affects displayed pressure in Isaac (bigger temp = closer to pressure_Pa).
 	('wind_scaling_sqrt', 'f', IDENTITY, IDENTITY), # byte 56
 	('riding_tilt_times_10', 'h', IDENTITY, IDENTITY), # byte 60
 	('cal_mass_lb', 'h', IDENTITY, IDENTITY), # byte 62
-	('unknown_5', 'h', IDENTITY, IDENTITY), # byte 64, 0x5800 and 0x6000 and 0x5c00 observed; multiplying by 10 doesn't do much...
+	('unknown_5', 'h', IDENTITY, IDENTITY), # byte 64, 0x5800 and 0x6000 and 0x5c00 observed; multiplying by 10 doesn't affect: wind speed, pressure, temperature, 
 	('wind_tube_pressure_offset', 'h', lambda x: x - 1024, lambda x: x + 1024), # byte 66, this is a 10-bit signed negative number cast to unsigned and stored in a 16 bit int...
 	('unknown_7', 'i', IDENTITY, IDENTITY), # byte 68, 0x00000000 observed
-	('ref_temperature_kelvin', 'h', IDENTITY, IDENTITY), # byte 72, normally 288 (14.85C)
-	('ref_pressure_Pa', 'i', IDENTITY, IDENTITY), # byte 74
+	('reference_temperature_kelvin', 'h', IDENTITY, IDENTITY), # byte 72, normally 288 (14.85C)
+	('reference_pressure_Pa', 'i', IDENTITY, IDENTITY), # byte 74
 	('unknown_9', 'h', IDENTITY, IDENTITY), # byte 78 -- 0x0100 observed
 	('unknown_a', 'h', IDENTITY, IDENTITY), # byte 80 -- 0x3200 observed
 	# byte 82
@@ -336,6 +336,10 @@ class NewtonRide(object):
 	def __init__(self, *args):
 		for name, value in zip(self.__slots__, args):
 			setattr(self, name, value)
+		data = [x for x in self.data if hasattr(x, 'temperature_farenheit')]
+		print sum(row.temperature_farenheit for row in data) / float(len(data))
+		print self.unknown_3
+		print self.unknown_5
 		self.data_records = min(self.data_records, 100)
 		self.data = self.data[:100]
 		#self.pressure_Pa = 2000000000
@@ -352,6 +356,8 @@ class NewtonRide(object):
 		# unknown_3 = 100, pressure = 9833825mbar
 		# unknown_3 = 10000, pressure = 9991024mbar
 		self.unknown_3 = 10000
+		self.wind_scaling_sqrt = 2.0
+		self.unknown_5 *= 10
 
 	@classmethod
 	def from_binary(cls, data):
@@ -376,7 +382,8 @@ class NewtonRide(object):
 		pure_records = [x for x in self.data if not hasattr(x, 'newton_time')]
 		csv_data = [float(x['Wind Speed (km/hr)']) for x in csv.data]
 		compare = [(x, y) for x, y in zip(pure_records, csv_data) if y > 0]
-		get_errors = lambda offset, multiplier: [pure_record.wind_speed(offset, multiplier) - csv_datum for pure_record, csv_datum in compare]
+		reference_pressure_kPa = self.reference_pressure_Pa / 1000.0
+		get_errors = lambda offset, multiplier: [pure_record.wind_speed(offset, multiplier, reference_pressure_kPa, self.reference_temperature_kelvin, self.wind_scaling_sqrt) - csv_datum for pure_record, csv_datum in compare]
 		dirs = [(x, y) for x in range(-1, 2) for y in range(-1, 2) if x != 0 or y != 0]
 		print dirs
 		skip = 500
@@ -534,25 +541,23 @@ class NewtonRideData(object):
 	def elevation_metres(self):
 		return self.elevation_feet * 0.3048
 
-	@property
-	def pressure_kPa(self):
+	def pressure_kPa(self, reference_pressure_Pa=101.325, reference_temperature_kelvin=288.15):
 		# Pascals
-		return 101.325 * (1 - (0.0065 * self.elevation_metres) / 288.15) ** (9.80665 * 0.0289644 / 8.31447 / 0.0065)
+		return reference_pressure_Pa * (1 - (0.0065 * self.elevation_metres) / reference_temperature_kelvin) ** (9.80665 * 0.0289644 / 8.31447 / 0.0065)
 
 	@property
 	def temperature_kelvin(self):
 		return (self.temperature_farenheit + 459.67) * 5 / 9
 
-	@property
-	def density(self):
+	def density(self, reference_pressure_Pa=101.325, reference_temperature_kelvin=288.15):
 		# I say 0.8773 at 22.7778C/2516.7336m; they say 0.8768. Good enough...
-		return self.pressure_kPa * 1000 * 0.0289644 / 8.31447 / self.temperature_kelvin
+		return self.pressure_kPa(reference_pressure_Pa, reference_temperature_kelvin) * 1000 * 0.0289644 / 8.31447 / self.temperature_kelvin
 
-	def wind_speed(self, offset=621, multiplier=13.6355):
+	def wind_speed(self, offset=621, multiplier=13.6355, reference_pressure_Pa=101.325, reference_temperature_kelvin=288.15, wind_scaling_sqrt=1.0):
 		# Based on solving from CSV file
 		if self.wind_tube_pressure_difference < offset:
 			return 0.0
-		return ((self.wind_tube_pressure_difference - offset) / self.density * multiplier) ** 0.5
+		return ((self.wind_tube_pressure_difference - offset) / self.density(reference_pressure_Pa, reference_temperature_kelvin) * multiplier) ** 0.5 * wind_scaling_sqrt
 
 	def __repr__(self):
 		return '{}({})'.format(self.__class__.__name__, ', '.join(repr(getattr(self, name)) for name in self.__slots__))
