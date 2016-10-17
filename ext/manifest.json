@@ -1,0 +1,20 @@
+{
+	"name": "Strava Data Extensions",
+	"description": "Add self-hosted data to your Strava analysis fields",
+	"version": "0.0.0.1",
+	"manifest_version": 2,
+	"permissions": [ "activeTab", "http://bucko.uwcs.co.uk/" ],
+	"content_scripts": [
+		{
+			"js": ["js/content_script.js"],
+			"run_at": "document_end",
+			"matches": [
+				"http://*.strava.com/*",
+				"https://*.strava.com/*"
+			]
+		}
+	],
+	"web_accessible_resources": [
+		"js/main.js"
+	]
+}

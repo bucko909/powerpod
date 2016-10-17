@@ -1,69 +1,40 @@
-import connection
+import collections
 import sys
 import urllib2
 import simplejson
 import datetime
 
-newton_ride = connection.NewtonRide.from_binary(open(sys.argv[1], 'r').read())
-url = 'https://www.strava.com/api/v3/activities/%s/streams/time,distance,cadence,heartrate,velocity_smooth?access_token=%s' % (sys.argv[2], open('/home/bucko/.strava-token', 'r').read()[:-1])
-strava_ride = simplejson.load(urllib2.urlopen(url))
-strava_names = [x['type'] for x in strava_ride]
-strava_points = [dict(zip(strava_names, x)) for x in zip(*(x['data'] for x in strava_ride))]
+import connection
 
-def get_strava_chunks(ride):
-	chunks = []
-	chunk = []
-	holes = []
+def get_strava_filled(ride):
+	filled_data = []
 	i = 0
 	for data in ride:
 		if data['time'] != i:
-			holes.append(data['time'] - i)
-			for i in range(holes[-1]):
-				chunk.append(None)
-			#chunks.append(chunk)
-			#chunk = []
-			print "skip", i, data['time'], data['time'] - i
+			for i in range(data['time'] - i):
+				filled_data.append(None)
 			i = data['time']
+		filled_data.append(data)
 		i += 1
-		chunk.append(data)
-	if chunk:
-		chunks.append(chunk)
-	return chunks, holes
+	return filled_data
 
-def get_newton_chunks(ride):
-	chunks = []
-	chunk = []
-	holes = []
+def get_newton_filled(ride):
+	filled_data = []
 	expect = ride.start_time.as_datetime()
 	for data in ride.data:
 		if hasattr(data, 'newton_time'):
-			print "skip", expect, data.newton_time.as_datetime(), data.newton_time.as_datetime() - expect
-			if not chunks and not chunk:
-				expect = data.newton_time.as_datetime()
-				continue
-			if not chunk:
-				continue
-			holes.append((data.newton_time.as_datetime() - expect).total_seconds())
-			for i in range(int(holes[-1])):
-				chunk.append(None)
-			expect = data.newton_time.as_datetime() #- datetime.timedelta(seconds=1)
-			#chunks.append(chunk)
-			#chunk = []
+			extra_seconds = int((data.newton_time.as_datetime() - expect).total_seconds())
+			for i in range(extra_seconds):
+				filled_data.append(None)
+			expect = data.newton_time.as_datetime()
 			continue
+		filled_data.append(data)
 		expect += datetime.timedelta(seconds=1)
-		chunk.append(data)
-	if chunk:
-		chunks.append(chunk)
-	return chunks, holes
-
-strava_chunks, strava_holes = get_strava_chunks(strava_points)
-newton_chunks, newton_holes = get_newton_chunks(newton_ride)
-
-strava_idx = newton_idx = 0
+	return filled_data
 
 def covariance(xs, ys):
 	zipped = zip(xs, ys)
-	xsum = ysum = sum2 = xysum = 0
+	xsum = ysum = x2sum = y2sum = xysum = 0
 	count = 0.0
 	for x, y in zipped:
 		if x is None or y is None:
@@ -71,14 +42,16 @@ def covariance(xs, ys):
 		count += 1
 		xsum += x
 		ysum += y
-		sum2 += (x + y) * (x + y)
-		xysum += x*y
+		x2sum += x * x
+		y2sum += y * y
+		xysum += x * y
 	xmean = xsum / count
 	ymean = ysum / count
-	variance = (sum2 / count - (xsum + ysum) * (ysum + xsum) / count / count) / 2
-	if variance == 0:
+	xdev = (x2sum / count - xsum * xsum / count / count) ** 0.5
+	ydev = (y2sum / count - ysum * ysum / count / count) ** 0.5
+	if xdev == 0 or ydev == 0:
 		return 0.0
-	return ((xysum - xmean * ysum - ymean * xsum) / count + xmean * ymean) / variance
+	return ((xysum - xmean * ysum - ymean * xsum) / count + xmean * ymean) / xdev / ydev
 
 def correlate(newton_chunk, strava_chunk):
 	streams = []
@@ -99,7 +72,7 @@ def correlate(newton_chunk, strava_chunk):
 			))
 	best_cov = [float('-inf')]
 	best = 0
-	window = min(len(newton_chunk) - 2, len(strava_chunk) - 2, 500)
+	window = min(len(newton_chunk) - 2, len(strava_chunk) - 2, 60)
 	for offset in range(-window, window + 1):
 		newton_offset = max(offset, 0)
 		strava_offset = max(-offset, 0)
@@ -107,39 +80,76 @@ def correlate(newton_chunk, strava_chunk):
 		if sum(cov) > sum(best_cov):
 			best_cov = cov
 			best = offset
-		print cov, offset, best_cov, best
 	newton_offset = max(best, 0)
 	strava_offset = max(-best, 0)
 	return newton_offset, strava_offset, min(len(newton_chunk) - newton_offset, len(strava_chunk) - strava_offset), best_cov
 
-newton_offset = strava_offset = 0
-newton_progress = strava_progress = 0
+newton_ride = connection.NewtonRide.from_binary(open(sys.argv[1], 'r').read())
+url = 'https://www.strava.com/api/v3/activities/%s/streams/time,distance,cadence,heartrate,velocity_smooth?access_token=%s' % (sys.argv[2], open('/home/bucko/.strava-token', 'r').read()[:-1])
+strava_ride = simplejson.load(urllib2.urlopen(url))
+strava_names = [x['type'] for x in strava_ride]
+strava_points = [dict(zip(strava_names, x)) for x in zip(*(x['data'] for x in strava_ride))]
 
-while newton_idx < len(newton_chunks) and strava_idx < len(strava_chunks):
-	newton_chunk = newton_chunks[newton_idx][newton_offset:]
-	strava_chunk = strava_chunks[strava_idx][strava_offset:]
-	print len(newton_chunk), len(strava_chunk)
-	newton_start, strava_start, length, error = correlate(newton_chunk, strava_chunk)
-	print "correlate", newton_start, strava_start, length, error
-	if len(newton_chunk) > newton_offset + length + 5:
-		newton_offset += newton_start + length
-		newton_progress += length
+strava_filled = get_strava_filled(strava_points)
+newton_filled = get_newton_filled(newton_ride)
+
+print >>sys.stderr, "correlating..."
+newton_start, strava_start, length, error = correlate(newton_filled, strava_filled)
+print >>sys.stderr, "correlate", newton_start, strava_start, length, error
+
+records = {
+		'newton_heartrate': lambda record, _ride: record.heart_rate,
+		'newton_cadence': lambda record, _ride: record.cadence,
+		'newton_ground_velocity': lambda record, _ride: round(record.speed_mph * 1.602, 2),
+		'newton_air_velocity': lambda record, ride: round(record.wind_speed_kph(offset=ride.wind_tube_pressure_offset - 10, reference_pressure_Pa=ride.reference_pressure_Pa / 1000., reference_temperature_kelvin=ride.reference_temperature_kelvin, wind_scaling_sqrt=ride.wind_scaling_sqrt), 2),
+		'newton_slope': lambda record, _ride: round(record.tilt, 1),
+		'newton_temp': lambda record, _ride: round(record.temperature_kelvin - 273.15, 2),
+		'newton_elevation': lambda record, _ride: round(record.elevation_metres, 2),
+		'newton_power': lambda record, _ride: record.power_watts,
+		'newton_thingy': lambda record, _ride: record.unknown_0,
+		'newton_acceleration': lambda record, _ride: record.acceleration_maybe / 10.0,
+		'elev_corr': lambda record, _ride: record.elevation_metres + record.unknown_0 / .3048,
+}
+
+def integrate_slope(record, _ride):
+	if not hasattr(integrate_slope, 'buf'):
+		integrate_slope.buf = collections.deque()
+		integrate_slope.buf_len = 0.0
+		integrate_slope.buf_int = 0.0
+	integrate_slope.buf.append(record)
+	integrate_slope.buf_len += record.speed_mph * 1602 / 3600.0
+	integrate_slope.buf_int += record.speed_mph * 1602 * (record.tilt + 0.1) * 0.01 / 3600.0
+	while integrate_slope.buf_len > 3000 and False:
+		old = integrate_slope.buf.popleft()
+		integrate_slope.buf_len -= old.speed_mph * 1602 / 3600.0
+		integrate_slope.buf_int -= old.speed_mph * 1602 * old.tilt / 3600.0
+	if integrate_slope.buf_len > 2900:
+		return integrate_slope.buf_int #/ integrate_slope.buf_len
 	else:
-		print "newton skip", newton_holes[newton_idx]
-		newton_progress += newton_holes[newton_idx] + len(newton_chunk)
-		newton_idx += 1
-		newton_offset = 0
-	print "newton", newton_idx, newton_offset, newton_progress
-	if len(strava_chunk) > strava_start + length + 5:
-		strava_offset += strava_start + length
-		strava_progress += length
-	else:
-		print "strava skip", strava_holes[strava_idx]
-		strava_progress += strava_holes[strava_idx] + len(strava_chunk)
-		strava_idx += 1
-		strava_offset = 0
-	print "strava", strava_idx, strava_offset, strava_progress
+		return None
+records['slope_average'] = integrate_slope
 
-
-import ipdb
-#ipdb.set_trace()
+data = {name: {'type': name, 'resolution': 'high', 'original_size': len(strava_points), 'series_type': 'distance', 'data': []} for name in records.keys()}
+data['time'] = strava_ride[strava_names.index('time')]
+# Lead in with nulls
+for i in range(strava_start):
+	if strava_filled[i] is None:
+		continue
+	for name, _make in records.items():
+		data[name]['data'].append(None)
+# Fill in the newton records
+for i in range(length):
+	if strava_filled[strava_start + i] is None:
+		continue
+	for name, make in records.items():
+		if newton_filled[i + newton_start] is None:
+			data[name]['data'].append(None)
+		else:
+			data[name]['data'].append(make(newton_filled[i + newton_start], newton_ride))
+# Lead out with nulls
+for i in range(len(strava_filled) - strava_start - length):
+	if strava_filled[strava_start + length + i] is None:
+		continue
+	for name, _make in records.items():
+		data[name]['data'].append(None)
+print simplejson.dumps(data.values(), separators=(',', ':'))

@@ -1,4 +1,5 @@
 from collections import namedtuple
+import datetime
 import logging
 import operator
 import re
@@ -336,16 +337,14 @@ class NewtonRide(object):
 	def __init__(self, *args):
 		for name, value in zip(self.__slots__, args):
 			setattr(self, name, value)
+		self.wind_scaling_sqrt = 1.4
+		return
 		data = [x for x in self.data if hasattr(x, 'temperature_farenheit')]
-		print sum(row.temperature_farenheit for row in data) / float(len(data))
-		print self.unknown_3
-		print self.unknown_5
-		self.data_records = min(self.data_records, 100)
-		self.data = self.data[:100]
+		#self.data_records = min(self.data_records, 100)
+		#self.data = self.data[:100]
 		#self.pressure_Pa = 2000000000
 		print "pressure: %s" % self.pressure_Pa
 		#self.unknown_3 = self.unknown_3
-		print "unknown_3: %s" % self.unknown_3
 		# pressure_Pa = 103175
 		# unknown_3 = 1, pressure = 1011mbar
 		# unknown_3 = 100, pressure = 1015mbar
@@ -355,9 +354,8 @@ class NewtonRide(object):
 		# unknown_3 = 1, pressure = 9798543mbar
 		# unknown_3 = 100, pressure = 9833825mbar
 		# unknown_3 = 10000, pressure = 9991024mbar
-		self.unknown_3 = 10000
-		self.wind_scaling_sqrt = 2.0
-		self.unknown_5 *= 10
+		#self.wind_scaling_sqrt = 2.0
+		#self.unknown_5 *= 10
 
 	@classmethod
 	def from_binary(cls, data):
@@ -383,7 +381,7 @@ class NewtonRide(object):
 		csv_data = [float(x['Wind Speed (km/hr)']) for x in csv.data]
 		compare = [(x, y) for x, y in zip(pure_records, csv_data) if y > 0]
 		reference_pressure_kPa = self.reference_pressure_Pa / 1000.0
-		get_errors = lambda offset, multiplier: [pure_record.wind_speed(offset, multiplier, reference_pressure_kPa, self.reference_temperature_kelvin, self.wind_scaling_sqrt) - csv_datum for pure_record, csv_datum in compare]
+		get_errors = lambda offset, multiplier: [pure_record.wind_speed_kph(offset, multiplier, reference_pressure_kPa, self.reference_temperature_kelvin, self.wind_scaling_sqrt) - csv_datum for pure_record, csv_datum in compare]
 		dirs = [(x, y) for x in range(-1, 2) for y in range(-1, 2) if x != 0 or y != 0]
 		print dirs
 		skip = 500
@@ -408,6 +406,13 @@ class NewtonRide(object):
 			#print best, skip, best_error
 		errors = get_errors(*best)
 		return best, best_error, max(map(abs, errors)), ["%0.4f" % (x,) for x in errors]
+
+	def fit_elevation(self, csv):
+		pure_records = [x for x in self.data if not hasattr(x, 'newton_time')]
+		csv_data = [float(x['Elevation (meters)']) / 0.3048 for x in csv.data]
+		compare = [(x, y) for x, y in zip(pure_records, csv_data)]
+		get_errors = lambda mul: [(pure_record.density(), pure_record.elevation_feet, csv_datum, pure_record.elevation_feet - csv_datum, (pure_record.wind_tube_pressure_difference - self.wind_tube_pressure_offset), pure_record.tilt, pure_record.unknown_0, pure_record) for pure_record, csv_datum in compare]
+		return get_errors(0.1)
 
 	def __repr__(self):
 		return '{}({})'.format(self.__class__.__name__, ', '.join(repr(getattr(self, name)) for name in self.__slots__))
@@ -460,14 +465,12 @@ RIDE_DATA_FIELDS = [
 	('cadence', 8, IDENTITY, IDENTITY),
 	('heart_rate', 8, IDENTITY, IDENTITY),
 	('temperature_farenheit', 8, lambda x: x - 100, lambda x: x + 100),
-	('unknown_0', 9, IDENTITY, IDENTITY), # Don't know what this is. Seems to be a signed 9 bit number, but even making drastic changes to it doesn't really bother Isaac.
-	('tilt_times_10', 10, FROM_TIMES_TEN_SIGNED(10), TO_TIMES_TEN_SIGNED(10)),
+	('unknown_0', 9, lambda x: to_signed(x, 9), lambda x: to_unsigned(x, 9)), # Don't know what this is. Seems to be a signed 9 bit number, but even making drastic changes to it doesn't really bother Isaac.
+	('tilt', 10, FROM_TIMES_TEN_SIGNED(10), TO_TIMES_TEN_SIGNED(10)),
 	('speed_mph', 10, FROM_TIMES_TEN, TO_TIMES_TEN),
-	#('unknown_1', 2, IDENTITY, IDENTITY),
-	#('wind_speed_mph_maybe', 8, FROM_TIMES_TEN, TO_TIMES_TEN),
 	('wind_tube_pressure_difference', 10, IDENTITY, IDENTITY),
 	('power_watts', 11, IDENTITY, IDENTITY),
-	('unknown_2', 11, IDENTITY, IDENTITY),
+	('unknown_2', 11, IDENTITY, IDENTITY), # My guess is DFPM power.
 	('acceleration_maybe', 10, lambda x: to_signed(x, 10), lambda x: to_unsigned(x, 10)),
 	('stopped_flag_maybe', 1, IDENTITY, IDENTITY),
 	('unknown_3', 8, IDENTITY, IDENTITY), # if this is large, "drafting" becomes true
@@ -553,7 +556,7 @@ class NewtonRideData(object):
 		# I say 0.8773 at 22.7778C/2516.7336m; they say 0.8768. Good enough...
 		return self.pressure_kPa(reference_pressure_Pa, reference_temperature_kelvin) * 1000 * 0.0289644 / 8.31447 / self.temperature_kelvin
 
-	def wind_speed(self, offset=621, multiplier=13.6355, reference_pressure_Pa=101.325, reference_temperature_kelvin=288.15, wind_scaling_sqrt=1.0):
+	def wind_speed_kph(self, offset=621, multiplier=13.6355, reference_pressure_Pa=101.325, reference_temperature_kelvin=288.15, wind_scaling_sqrt=1.0):
 		# Based on solving from CSV file
 		if self.wind_tube_pressure_difference < offset:
 			return 0.0
