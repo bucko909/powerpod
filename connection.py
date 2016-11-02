@@ -370,11 +370,7 @@ class NewtonRide(object):
 		return fixed_part + data_part
 
 	def get_header(self):
-		# \x11\x00
-		# newton time
-		# float encoding of ride length in metres.
-		return struct.pack('<h8sf', self.unknown_0, self.start_time.get_binary(), sum(x.speed_mph * 1602 / 3600. for x in self.data if isinstance(x, NewtonRideData)))
-		#return '\x11\x00\x06\x12\x03\x18\x09\x1e\xe0\x07\x27\xde\x77\x47'
+		return NewtonRideHeader(self.unknown_0, self.start_time, sum(x.speed_mph * 1602 / 3600. for x in self.data if isinstance(x, NewtonRideData))).get_binary()
 
 	def fit_to(self, csv):
 		pure_records = [x for x in self.data if not hasattr(x, 'newton_time')]
@@ -416,6 +412,27 @@ class NewtonRide(object):
 
 	def __repr__(self):
 		return '{}({})'.format(self.__class__.__name__, ', '.join(repr(getattr(self, name)) for name in self.__slots__))
+
+class NewtonRideHeader(namedtuple('NewtonRideHeader', 'unknown_0 start_time distance_metres')):
+	# \x11\x00
+	# newton time
+	# float encoding of ride length in metres.
+	SHAPE = '<h8sf'
+	SIZE = 14
+
+	def get_binary(self):
+		return struct.pack(self.SHAPE, self.unknown_0, self.start_time.get_binary(), self.distance_metres)
+
+	@classmethod
+	def parse(cls, data):
+		unknown_0, start_time_raw, distance_metres = struct.unpack(cls.SHAPE, data)
+		return cls(unknown_0, NewtonTime.from_binary(start_time_raw), distance_metres)
+
+	@classmethod
+	def parse_list(cls, data):
+		length, = struct.unpack('<h', data[:2])
+		assert len(data) == length * cls.SIZE + 2, (len(data), length, repr(data))
+		return [cls.parse(data[2 + x * cls.SIZE:2 + (x + 1) * cls.SIZE]) for x in range(length)]
 
 CSV_FIELD = re.compile(r'(?:^|(?<=,))(?:[^,"]*|"(?:[^"\\]|\\.)*")(?:(?=,)|$)')
 CSV_FIELDS = lambda line: [x[1:-1] if len(x) > 2 and x[0] == '"' else x for x in CSV_FIELD.findall(line[:-1])]
