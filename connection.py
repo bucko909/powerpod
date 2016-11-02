@@ -123,6 +123,9 @@ class MessagePacket(Packet):
 class NewtonCommand(object):
 	MAP = {}
 
+	def get_response(self, simulator):
+		return self.RESPONSE.from_simulator(self, simulator).get_binary()
+
 def add_command(cls):
 	NewtonCommand.MAP[cls.IDENTIFIER] = cls
 	return cls
@@ -370,7 +373,7 @@ class NewtonRide(object):
 		return fixed_part + data_part
 
 	def get_header(self):
-		return NewtonRideHeader(self.unknown_0, self.start_time, sum(x.speed_mph * 1602 / 3600. for x in self.data if isinstance(x, NewtonRideData))).get_binary()
+		return NewtonRideHeader(self.unknown_0, self.start_time, sum(x.speed_mph * 1602 / 3600. for x in self.data if isinstance(x, NewtonRideData)))
 
 	def fit_to(self, csv):
 		pure_records = [x for x in self.data if not hasattr(x, 'newton_time')]
@@ -591,14 +594,23 @@ class NewtonRideDataPaused(namedtuple('NewtonRideDataPaused', 'tag newton_time u
 	def get_binary(self):
 		return struct.pack('<6s8sb', self.tag, self.newton_time.get_binary(), self.unknown_3)
 
+class GetFileListResponse(namedtuple('GetFileListResponse', 'headers')):
+	@classmethod
+	def parse(cls, data):
+		return cls(NewtonRideHeader.parse_list(data))
+
+	def get_binary(self):
+		return struct.pack('<h', len(self.headers)) + ''.join(header.get_binary() for header in self.headers)
+
+	@classmethod
+	def from_simulator(cls, _command, simulator):
+		return cls([ride.get_header() for ride in simulator.rides])
+
 @add_command
 class GetFileListCommand(StructCommand, namedtuple('GetFileListCommandBase', '')):
 	IDENTIFIER = 0x21
 	SHAPE = ''
-
-	@staticmethod
-	def get_response(simulator):
-		return struct.pack('<h', len(simulator.rides)) + ''.join(ride.get_header() for ride in simulator.rides)
+	RESPONSE = GetFileListResponse
 
 @add_command
 class UnknownCommand(StructCommand, namedtuple('UnknownCommandBase', '')):
