@@ -136,6 +136,9 @@ class StructCommand(NewtonCommand):
 		args = struct.unpack(cls.SHAPE, data)
 		return cls(*args)
 
+	def get_binary(self):
+		return struct.pack('b' + self.SHAPE, self.IDENTIFIER, *self)
+
 @add_command
 class SetTimeCommand(NewtonCommand, namedtuple('SetTimeCommandBase', 'unknown newton_time')):
 	# Is the unknown1 optional? I've seen this sent without it...
