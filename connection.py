@@ -623,8 +623,9 @@ class UnknownCommand(StructCommand, namedtuple('UnknownCommandBase', '')):
 		return '\x00\x02\x00\x00'
 
 class NewtonSerialProtocol(object):
-	def __init__(self, connection):
+	def __init__(self, connection, device_side=True):
 		self.connection = connection
+		self.device_side = device_side
 
 	def read_packet(self):
 		data = None
@@ -679,7 +680,7 @@ class NewtonSerialProtocol(object):
 				continue
 			message_parts.append(conversation[-1])
 			if conversation[-1].terminal:
-				self.write_packet(CommandAckPacket())
+				self.write_packet(self.ack_to_send())
 				message = ''.join(part.data for part in message_parts)
 				LOGGER.debug("read_message %r", message)
 				return message
@@ -700,6 +701,20 @@ class NewtonSerialProtocol(object):
 			if not self._write_message_part(message_part):
 				return
 
+	@property
+	def ack_to_send(self):
+		if self.device_side:
+			return CommandAckPacket
+		else:
+			return AckPacket
+
+	@property
+	def expected_write_ack(self):
+		if self.device_side:
+			return AckPacket
+		else:
+			return CommandAckPacket
+
 	def _write_message_part(self, message_part):
 		self.write_packet(ReadyPacket())
 		packet = self.read_packet()
@@ -709,7 +724,7 @@ class NewtonSerialProtocol(object):
 			return False
 		self.write_packet(MessagePacket(message_part))
 		packet = self.read_packet()
-		if not isinstance(packet, AckPacket):
+		if not isinstance(packet, self.expected_write_ack):
 			LOGGER.warning("unexpected_write_ack %r", packet)
 			self.write_packet(InterruptPacket())
 			return False
