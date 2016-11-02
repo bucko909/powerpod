@@ -2,6 +2,7 @@ import threading
 import ipdb
 import connection
 import logging
+import argparse
 
 LOGGER = logging.getLogger(__name__)
 
@@ -54,9 +55,21 @@ class NewtonSimulator(threading.Thread):
 				log("-> %r", str(response)[:200])
 				self.protocol.write_message(response)
 
-if __name__ == '__main__':
+def arg_parser():
+	parser = argparse.ArgumentParser()
+	parser.add_argument('--port')
+	return parser
+
+def main():
 	logging.basicConfig(level=logging.INFO)
-	sim = NewtonSimulator()
+	args = arg_parser().parse_args()
+	kwargs = {}
+	if args.port is not None:
+		kwargs['serial_connection'] = connection.NewtonSerialConnection(port=args.port)
+	sim = NewtonSimulator(**kwargs)
 	sim.setDaemon(True)
 	sim.start()
 	ipdb.set_trace()
+
+if __name__ == '__main__':
+	main()
