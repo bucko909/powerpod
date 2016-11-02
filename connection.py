@@ -137,7 +137,7 @@ class StructCommand(NewtonCommand):
 		return cls(*args)
 
 	def get_binary(self):
-		return struct.pack('b' + self.SHAPE, self.IDENTIFIER, *self)
+		return struct.pack('b', self.IDENTIFIER) + struct.pack(self.SHAPE, *self)
 
 @add_command
 class SetTimeCommand(NewtonCommand, namedtuple('SetTimeCommandBase', 'unknown newton_time')):
@@ -298,13 +298,23 @@ class NewtonProfile(object):
 	def __repr__(self):
 		return '{}({})'.format(self.__class__.__name__, ', '.join(repr(getattr(self, name)) for name in self.__slots__))
 
+class GetFileResponse(namedtuple('GetFileResponse', 'ride_data')):
+	@classmethod
+	def parse(cls, data):
+		return cls(NewtonRide.from_binary(data))
+
+	def get_binary(self):
+		return self.ride_data.get_binary()
+
+	@classmethod
+	def from_simulator(cls, command, simulator):
+		return simulator.rides[command.ride_number].get_binary()
+
 @add_command
 class GetFileCommand(StructCommand, namedtuple('GetFileCommandBase', 'ride_number')):
 	IDENTIFIER = 0x20
 	SHAPE = '<h'
-
-	def get_response(self, simulator):
-		return simulator.rides[self.ride_number].get_binary()
+	RESPONSE = GetFileResponse
 
 IDENTITY = lambda x: x
 RIDE_FIELDS = [
@@ -687,6 +697,7 @@ class NewtonSerialProtocol(object):
 				message = ''.join(part.data for part in message_parts)
 				LOGGER.debug("read_message %r", message)
 				return message
+			self.write_packet(AckPacket())
 			conversation = []
 
 	def write_message(self, message):
