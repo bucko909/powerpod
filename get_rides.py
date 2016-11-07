@@ -1,6 +1,9 @@
+import argparse
 import connection
 import logging
-import argparse
+import os
+import os.path
+import time
 
 LOGGER = logging.getLogger(__name__)
 
@@ -10,7 +13,7 @@ def arg_parser():
 	return parser
 
 def main():
-	logging.basicConfig(level=logging.DEBUG)
+	#logging.basicConfig(level=logging.DEBUG)
 	args = arg_parser().parse_args()
 	kwargs = {}
 	serial_connection = connection.NewtonSerialConnection(port=args.port)
@@ -18,11 +21,18 @@ def main():
 	data = connection.GetFileListCommand().get_binary()
 	print repr(data)
 	protocol.write_message(data)
-	headers = connection.GetFileListCommand.RESPONSE.parse(protocol.read_message()).headers
+	response = connection.GetFileListCommand.RESPONSE.parse(protocol.read_message())
+	print response
+	headers = response.headers
 	for i, header in enumerate(headers):
-		print i, header
+		filename = "powerpod.%s-%0.1fkm.raw" % (header.start_time.as_datetime().strftime("%Y-%m-%dT%H-%M-%S"), header.distance_metres / 1000)
+		print i, header, filename
+		time.sleep(1)
 		protocol.write_message(connection.GetFileCommand(i).get_binary())
-		print connection.GetFileCommand.RESPONSE.parse(protocol.read_message())
+		response_raw = protocol.read_message()
+		response = connection.GetFileCommand.RESPONSE.parse(response_raw).ride_data
+		assert response.get_binary() == response_raw, map(repr, [response_raw[:100], response.get_binary()[:100]])
+		open(os.path.join('rides', filename), 'w').write(response.get_binary())
 
 if __name__ == '__main__':
 	main()
