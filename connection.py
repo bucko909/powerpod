@@ -354,8 +354,8 @@ class NewtonRide(object):
 	def __init__(self, *args):
 		for name, value in zip(self.__slots__, args):
 			setattr(self, name, value)
-		self.wind_scaling_sqrt = 1.4
 		return
+		self.wind_scaling_sqrt = 1.4
 		data = [x for x in self.data if hasattr(x, 'temperature_farenheit')]
 		#self.data_records = min(self.data_records, 100)
 		#self.data = self.data[:100]
