@@ -75,12 +75,12 @@ class InterruptPacket(BasicPacket):
 class MessagePacket(Packet):
 	INITIAL = '\xf7'
 
-	def __init__(self, data):
+	def __init__(self, data, length=None):
 		assert len(data) < 128
 		self._data = data
 
 	def __repr__(self):
-		return '{}({})'.format(self.__class__.__name__, self._data)
+		return '{}({!r}, length={})'.format(self.__class__.__name__, self._data, len(self._data))
 
 	@property
 	def checksum(self):
@@ -109,6 +109,7 @@ class MessagePacket(Packet):
 		checksum = data[-1]
 		packet = cls(data[3:-1])
 		if packet.checksum != checksum:
+			LOGGER.warning("Invalid checksum on data packet %r; ignoring!", packet)
 			return None
 		return packet
 
