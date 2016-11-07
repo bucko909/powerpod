@@ -115,7 +115,7 @@ class MessagePacket(Packet):
 
 	@property
 	def terminal(self):
-		return len(self._data) < 127
+		return len(self._data) < 63
 
 	@property
 	def data(self):
