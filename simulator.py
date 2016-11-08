@@ -28,7 +28,11 @@ class NewtonSimulator(threading.Thread):
 
 	def init(self):
 		self.profiles = powerpod.NewtonProfile.from_binary_get_profile_result(INITIAL_PROFILE)
-		self.rides = []
+		self.rides = [
+			powerpod.messages.NewtonRide.make(
+				[powerpod.messages.NewtonRideData(10, 0, 0, 100, 0, 0.0, 10.0, 620, 100, 0, 0, 1, 5) for x in range(1000)]
+			)
+		]
 		self.protocol = powerpod.NewtonSerialProtocol(self.serial_connection)
 
 	def run(self):

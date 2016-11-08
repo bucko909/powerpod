@@ -225,7 +225,7 @@ class GetFileResponse(namedtuple('GetFileResponse', 'ride_data')):
 
 	@classmethod
 	def from_simulator(cls, command, simulator):
-		return simulator.rides[command.ride_number].get_binary()
+		return cls(simulator.rides[command.ride_number])
 
 @add_command
 class GetFileCommand(StructCommand, namedtuple('GetFileCommandBase', 'ride_number')):
@@ -235,35 +235,36 @@ class GetFileCommand(StructCommand, namedtuple('GetFileCommandBase', 'ride_numbe
 
 IDENTITY = lambda x: x
 RIDE_FIELDS = [
-	('unknown_0', 'h', IDENTITY, IDENTITY), # byte 0
-	('data_records', 'i', IDENTITY, IDENTITY), # byte 2
-	('total_mass_lb', 'f', IDENTITY, IDENTITY), # byte 6, always integer?!, could be total mass
-	('energy_kJ', 'f', IDENTITY, IDENTITY), # byte 10
-	('aero', 'f', IDENTITY, IDENTITY), # byte 14
-	('fric', 'f', IDENTITY, IDENTITY), # byte 18
-	('initial_elevation_feet', 'f', IDENTITY, IDENTITY), # byte 22, always integer?!
-	('elevation_gain_feet', 'f', IDENTITY, IDENTITY), # byte 26, always integer?!
-	('wheel_circumference_mm', 'f', IDENTITY, IDENTITY), # byte 30, always integer?!
-	('unknown_1', 'h', IDENTITY, IDENTITY), # byte 34, 0x0f00 and 0x0e00 and 0x0e00 observed; multiplying by 10 does nothing observable.
-	('unknown_2', 'h', IDENTITY, IDENTITY), # byte 36, =1?
-	('start_time', '8s', NewtonTime.from_binary, NewtonTime.get_binary), # byte 38
-	('pressure_Pa', 'i', IDENTITY, IDENTITY), # byte 46, appears to be pressure in Pa (observed range 100121-103175) # (setting, reported) = [(113175, 1113), (103175, 1014), (93175, 915), (203175, 1996), (1e9, 9825490), (2e9, 19650979), (-2e9, -19650979)]. Reported value in Isaac (hPa) is this divided by ~101.7761 or multiplied by 0.00982549. This isn't affected by truncating the ride at all. It /is/ affected by unknown_3; if I make unknown_3 -73 from 73, I get (-2e9, -19521083).
-	('Cm', 'f', IDENTITY, IDENTITY), # byte 50
-	('average_temperature_farenheit', 'h', IDENTITY, IDENTITY), # byte 54. Average of temperature records. Does not affect displayed temperature in Isaac. It affects displayed pressure in Isaac (bigger temp = closer to pressure_Pa).
-	('wind_scaling_sqrt', 'f', IDENTITY, IDENTITY), # byte 56
-	('riding_tilt_times_10', 'h', IDENTITY, IDENTITY), # byte 60
-	('cal_mass_lb', 'h', IDENTITY, IDENTITY), # byte 62
-	('unknown_5', 'h', IDENTITY, IDENTITY), # byte 64, 0x5800 and 0x6000 and 0x5c00 observed; multiplying by 10 doesn't affect: wind speed, pressure, temperature, 
-	('wind_tube_pressure_offset', 'h', lambda x: x - 1024, lambda x: x + 1024), # byte 66, this is a 10-bit signed negative number cast to unsigned and stored in a 16 bit int...
-	('unknown_7', 'i', IDENTITY, IDENTITY), # byte 68, 0x00000000 observed
-	('reference_temperature_kelvin', 'h', IDENTITY, IDENTITY), # byte 72, normally 288 (14.85C)
-	('reference_pressure_Pa', 'i', IDENTITY, IDENTITY), # byte 74
-	('unknown_9', 'h', IDENTITY, IDENTITY), # byte 78 -- 0x0100 observed
-	('unknown_a', 'h', IDENTITY, IDENTITY), # byte 80 -- 0x3200 observed
+	('unknown_0', 'h', IDENTITY, IDENTITY, 17), # byte 0 -- 0x1100 observed
+	('data_records', 'i', IDENTITY, IDENTITY, 0), # byte 2
+	('total_mass_lb', 'f', IDENTITY, IDENTITY, 235), # byte 6, always integer?!, could be total mass
+	('energy_kJ', 'f', IDENTITY, IDENTITY, 0), # byte 10
+	('aero', 'f', IDENTITY, IDENTITY, 0.384), # byte 14
+	('fric', 'f', IDENTITY, IDENTITY, 12.0), # byte 18
+	('initial_elevation_feet', 'f', IDENTITY, IDENTITY, 0), # byte 22, always integer?!
+	('elevation_gain_feet', 'f', IDENTITY, IDENTITY, 0), # byte 26, always integer?!
+	('wheel_circumference_mm', 'f', IDENTITY, IDENTITY, 2136.0), # byte 30, always integer?!
+	('unknown_1', 'h', IDENTITY, IDENTITY, 15), # byte 34, 0x0f00 and 0x0e00 and 0x0e00 observed; multiplying by 10 does nothing observable.
+	('unknown_2', 'h', IDENTITY, IDENTITY, 1), # byte 36, =1?
+	('start_time', '8s', NewtonTime.from_binary, NewtonTime.get_binary, NewtonTime(0, 0, 0, 1, 1, 31, 2000)), # byte 38
+	('pressure_Pa', 'i', IDENTITY, IDENTITY, 101325), # byte 46, appears to be pressure in Pa (observed range 100121-103175) # (setting, reported) = [(113175, 1113), (103175, 1014), (93175, 915), (203175, 1996), (1e9, 9825490), (2e9, 19650979), (-2e9, -19650979)]. Reported value in Isaac (hPa) is this divided by ~101.7761 or multiplied by 0.00982549. This isn't affected by truncating the ride at all. It /is/ affected by unknown_3; if I make unknown_3 -73 from 73, I get (-2e9, -19521083).
+	('Cm', 'f', IDENTITY, IDENTITY, 1.0204), # byte 50
+	('average_temperature_farenheit', 'h', IDENTITY, IDENTITY, 73), # byte 54. Average of temperature records. Does not affect displayed temperature in Isaac. It affects displayed pressure in Isaac (bigger temp = closer to pressure_Pa).
+	('wind_scaling_sqrt', 'f', IDENTITY, IDENTITY, 1.0), # byte 56
+	('riding_tilt_times_10', 'h', IDENTITY, IDENTITY, 0.0), # byte 60
+	('cal_mass_lb', 'h', IDENTITY, IDENTITY, 235), # byte 62
+	('unknown_5', 'h', IDENTITY, IDENTITY, 88), # byte 64, 0x5800 and 0x6000 and 0x5c00 observed; multiplying by 10 doesn't affect: wind speed, pressure, temperature, 
+	('wind_tube_pressure_offset', 'h', lambda x: x - 1024, lambda x: x + 1024, 620), # byte 66, this is a 10-bit signed negative number cast to unsigned and stored in a 16 bit int...
+	('unknown_7', 'i', IDENTITY, IDENTITY, 0), # byte 68, 0x00000000 observed
+	('reference_temperature_kelvin', 'h', IDENTITY, IDENTITY, 288), # byte 72, normally 288 (14.85C)
+	('reference_pressure_Pa', 'i', IDENTITY, IDENTITY, 101325), # byte 74
+	('unknown_9', 'h', IDENTITY, IDENTITY, 1), # byte 78 -- 0x0100 observed
+	('unknown_a', 'h', IDENTITY, IDENTITY, 50), # byte 80 -- 0x3200 observed
 	# byte 82
 ]
 RIDE_DECODE = zip(*RIDE_FIELDS)[2]
 RIDE_ENCODE = zip(*RIDE_FIELDS)[3]
+RIDE_DEFAULTS = {key: value for key, _, _, _, value in RIDE_FIELDS}
 class NewtonRide(object):
 	__slots__ = zip(*RIDE_FIELDS)[0] + ('data',)
 	FORMAT = '<' + ''.join(zip(*RIDE_FIELDS)[1])
@@ -289,6 +290,25 @@ class NewtonRide(object):
 		# unknown_3 = 10000, pressure = 9991024mbar
 		#self.wind_scaling_sqrt = 2.0
 		#self.unknown_5 *= 10
+
+	@classmethod
+	def make(cls, data, **kwargs):
+		kwargs = {}
+		for name in cls.__slots__[:-1]:
+			kwargs[name] = RIDE_DEFAULTS[name]
+
+		kwargs['data'] = data
+		if data:
+			# TODO start_time, elevation gain
+			kwargs['average_temperature_farenheit'] = int(round(sum(x.temperature_farenheit for x in data if hasattr(x, 'temperature_farenheit')) / len(data)))
+			kwargs['initial_elevation_feet'] = [x.elevation_feet for x in data if hasattr(x, 'elevation_feet')][0]
+			kwargs['data_records'] = len(data)
+			kwargs['energy_kJ'] = int(round(sum(x.power_watts for x in data if hasattr(x, 'power_watts')) / 1000))
+
+		args = []
+		for name in cls.__slots__:
+			args.append(kwargs[name])
+		return cls(*args)
 
 	@classmethod
 	def from_binary(cls, data):
