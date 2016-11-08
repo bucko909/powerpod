@@ -12,14 +12,36 @@ def add_command(cls):
 	NewtonCommand.MAP[cls.IDENTIFIER] = cls
 	return cls
 
-class StructCommand(NewtonCommand):
+class StructType(object):
 	@classmethod
-	def parse(cls, data):
-		args = struct.unpack(cls.SHAPE, data)
-		return cls(*args)
+	def from_binary(cls, data):
+		return cls(*cls._decode(*struct.unpack(cls.SHAPE, data)))
+
+	@staticmethod
+	def _decode(*args):
+		""" data from unpack -> data for __init__ """
+		return args
 
 	def get_binary(self):
-		return struct.pack('b', self.IDENTIFIER) + struct.pack(self.SHAPE, *self)
+		return struct.pack(self.SHAPE, *self._encode())
+
+	def _encode(self):
+		""" data from self -> data for pack """
+		return self
+
+class StructCommand(NewtonCommand, StructType):
+	@classmethod
+	def from_binary(cls, data):
+		assert struct.unpack('b', data[0])[0] == self.IDENTIFIER
+		return super(StructCommand, self).from_binary(data[1:])
+
+	@classmethod
+	def parse(cls, data):
+		# TODO sort out this mess
+		return super(StructCommand, cls).from_binary(data)
+
+	def get_binary(self):
+		return struct.pack('b', self.IDENTIFIER) + super(StructCommand, self).get_binary()
 
 @add_command
 class SetTimeCommand(NewtonCommand, namedtuple('SetTimeCommandBase', 'unknown newton_time')):
@@ -34,6 +56,7 @@ class SetTimeCommand(NewtonCommand, namedtuple('SetTimeCommandBase', 'unknown ne
 
 	@staticmethod
 	def get_response(_simulator):
+		# This command just sends a second ack packet when it's done?
 		return None
 
 TIME_FIELDS = [
@@ -57,23 +80,35 @@ class NewtonTime(namedtuple('NewtonTime', zip(*TIME_FIELDS)[0])):
 	def get_binary(self):
 		return struct.pack(TIME_SHAPE, *self)
 
+class GetFileCountResponse(StructType, namedtuple('GetFileCountResponse', 'count')):
+	SHAPE = '<h'
+
+	@classmethod
+	def from_simulator(cls, _command, simulator):
+		return cls(len(simulator.rides))
+
 @add_command
 class GetFileCountCommand(StructCommand, namedtuple('GetFileCountCommandBase', '')):
 	IDENTIFIER = 0x08
 	SHAPE = ''
+	RESPONSE = GetFileCountResponse
 
 	@staticmethod
-	def get_response(_simulator):
-		return '\x00\x00'
+	def get_response(simulator):
+		return ''.join([chr(int(x, 16)) for x in simulator.serial_number.split('-')])
+
+class GetSerialNumberResponse(StructType, namedtuple('GetSerialNumberResponse', 'serial_number')):
+	SHAPE = '16s'
+
+	@classmethod
+	def from_simulator(cls, _command, simulator):
+		return cls(''.join(chr(int(x, 16)) for x in simulator.serial_number.split('-')))
 
 @add_command
 class GetSerialNumberCommand(StructCommand, namedtuple('GetSerialNumberCommandBase', '')):
 	IDENTIFIER = 0x09
 	SHAPE = ''
-
-	@staticmethod
-	def get_response(simulator):
-		return ''.join([chr(int(x, 16)) for x in simulator.serial_number.split('-')])
+	RESPONSE = GetSerialNumberResponse
 
 @add_command
 class GetFirmwareVersionCommand(StructCommand, namedtuple('GetFirmwareVersionCommandBase', '')):
