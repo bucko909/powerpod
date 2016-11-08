@@ -8,10 +8,6 @@ import powerpod
 LOGGER = logging.getLogger(__name__)
 
 
-ORIGINAL_RIDE = open('ride_data_0', 'r').read()
-#INITIAL_RIDE = ORIGINAL_RIDE[:82+15*8] + ORIGINAL_RIDE[-15:]
-INITIAL_RIDE = ORIGINAL_RIDE
-
 class NewtonSimulator(threading.Thread):
 	firmware_version = 6.12
 	serial_number = '-'.join(['00'] * 16)
@@ -32,7 +28,7 @@ class NewtonSimulator(threading.Thread):
 
 	def init(self):
 		self.profiles = powerpod.NewtonProfile.from_binary_get_profile_result(INITIAL_PROFILE)
-		self.rides = [powerpod.NewtonRide.from_binary(INITIAL_RIDE)]
+		self.rides = []
 		self.protocol = powerpod.NewtonSerialProtocol(self.serial_connection)
 
 	def run(self):
