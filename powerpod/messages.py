@@ -412,16 +412,19 @@ RIDE_DATA_FIELDS = [
 	('cadence', 8, IDENTITY, IDENTITY),
 	('heart_rate', 8, IDENTITY, IDENTITY),
 	('temperature_farenheit', 8, lambda x: x - 100, lambda x: x + 100),
-	('unknown_0', 9, lambda x: to_signed(x, 9), lambda x: to_unsigned(x, 9)), # Don't know what this is. Seems to be a signed 9 bit number, but even making drastic changes to it doesn't really bother Isaac.
+	('unknown_0', 9, lambda x: to_signed(x, 9), lambda x: to_unsigned(x, 9)),
 	('tilt', 10, FROM_TIMES_TEN_SIGNED(10), TO_TIMES_TEN_SIGNED(10)),
 	('speed_mph', 10, FROM_TIMES_TEN, TO_TIMES_TEN),
 	('wind_tube_pressure_difference', 10, IDENTITY, IDENTITY),
 	('power_watts', 11, IDENTITY, IDENTITY),
-	('unknown_2', 11, IDENTITY, IDENTITY), # My guess is DFPM power.
+	('dfpm_power_watts', 11, IDENTITY, IDENTITY),
 	('acceleration_maybe', 10, lambda x: to_signed(x, 10), lambda x: to_unsigned(x, 10)),
 	('stopped_flag_maybe', 1, IDENTITY, IDENTITY),
 	('unknown_3', 8, IDENTITY, IDENTITY), # if this is large, "drafting" becomes true
 ]
+# unknown_0 seems to be highly correlated to altitude. It might be average or integrated tilt. It seems to affect the /first record/ of the ride in Isaac but not much else (small = high power, big = low power -- which supports it being some sort of tilt offset).
+# acceleration_maybe seems negative when stopping, positive in general. My feeling is that it's forward acceleration. I can't get this to affect anything.
+# Using 'set profile after the ride' seems to ignore both unknown_0 and acceleration_maybe. I guess they are internal values, but I can only guess what they might do.
 assert sum(x[1] for x in RIDE_DATA_FIELDS) == 15 * 8
 DECODE_FIFTEEN_BYTES = '{:08b}' * 15
 ENCODE_FIFTEEN_BYTES = ''.join('{:0%sb}' % (fielddef[1],) for fielddef in RIDE_DATA_FIELDS)
