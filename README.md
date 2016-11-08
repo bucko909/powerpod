@@ -19,7 +19,9 @@ Python code for talking to Velocomp PowerPod hardware (and probably works on New
 
 Also includes a browser extension to get the data to render in Firefox/Chrome (only tested in Chrome).
 
-While I've made an attempt to get profile data decoded, my main focus is on importing ride data. The contents of the profile are somewhat interesting, though. I don't intend to ever deal with firmware updates. If you want to update your firmware, *use Isaac*.
+While I've made an attempt to get profile data decoded, my main focus is on importing ride data. The contents of the profile are somewhat interesting, though. If you want to mess with profile data (tweaking ride parameters etc.), for now at least I recommend you use Isaac.
+
+I don't intend to ever deal with firmware updates. If you want to update your firmware, *use Isaac*.
 
 ## Getting rides
 
@@ -57,10 +59,12 @@ I've been using this to test my understanding of the protocol. I've been testing
 
 ## Protocol
 
-Protocol was reverse engineered by dumping USB chatter. It is dealt with, to the best of my knowledge of how it works, in `connection.py`.
+Protocol was reverse engineered by dumping USB chatter. It is dealt with, to the best of my knowledge of how it works, in `powerpod.connection`.
 
 There's an "Interrupt" packet, and whenever that happens on the wire, protocol desyncs. I must be doing that wrong.
 
-`NewtonSerialProtocol` tries to be a machine for sending and receiving data from the device. Many command types are represented by classes in the same file.
+`NewtonSerialProtocol` tries to be a machine for sending and receiving data from the device.
+
+Many commands and other wire types are represented by classes in `powerpod.messages`. These were reverse engineered by dumping USB chatter while values in Isaac were altered. Ride data was correlated against the CSV files output by Isaac.
 
 Isaac detects device presence by looping "get serial number" and "get firmware version". It sets the device clock on connect, and every hour.

@@ -4,7 +4,7 @@ import urllib2
 import simplejson
 import datetime
 
-import connection
+import powerpod
 
 def get_strava_filled(ride):
 	filled_data = []
@@ -84,7 +84,7 @@ def correlate(newton_chunk, strava_chunk):
 	strava_offset = max(-best, 0)
 	return newton_offset, strava_offset, min(len(newton_chunk) - newton_offset, len(strava_chunk) - strava_offset), best_cov
 
-newton_ride = connection.NewtonRide.from_binary(open(sys.argv[1], 'r').read())
+newton_ride = powerpod.NewtonRide.from_binary(open(sys.argv[1], 'r').read())
 url = 'https://www.strava.com/api/v3/activities/%s/streams/time,distance,cadence,heartrate,velocity_smooth?access_token=%s' % (sys.argv[2], open('/home/bucko/.strava-token', 'r').read()[:-1])
 strava_ride = simplejson.load(urllib2.urlopen(url))
 strava_names = [x['type'] for x in strava_ride]

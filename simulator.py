@@ -1,8 +1,9 @@
 import threading
 import ipdb
-import connection
 import logging
 import argparse
+
+import powerpod
 
 LOGGER = logging.getLogger(__name__)
 
@@ -17,7 +18,7 @@ class NewtonSimulator(threading.Thread):
 	def __init__(self, serial_connection=None):
 		super(NewtonSimulator, self).__init__()
 		if serial_connection is None:
-			serial_connection = connection.NewtonSerialConnection()
+			serial_connection = powerpod.NewtonSerialConnection()
 		self.serial_connection = serial_connection
 		self.protocol = None
 		self.profiles = None
@@ -26,13 +27,13 @@ class NewtonSimulator(threading.Thread):
 
 	def do_reload(self):
 		self.reload = False
-		reload(connection)
+		reload(powerpod)
 		self.init()
 
 	def init(self):
-		self.profiles = connection.NewtonProfile.from_binary_get_profile_result(INITIAL_PROFILE)
-		self.rides = [connection.NewtonRide.from_binary(INITIAL_RIDE)]
-		self.protocol = connection.NewtonSerialProtocol(self.serial_connection)
+		self.profiles = powerpod.NewtonProfile.from_binary_get_profile_result(INITIAL_PROFILE)
+		self.rides = [powerpod.NewtonRide.from_binary(INITIAL_RIDE)]
+		self.protocol = powerpod.NewtonSerialProtocol(self.serial_connection)
 
 	def run(self):
 		last_identifier = 0x09 # skip first firmware
@@ -44,7 +45,7 @@ class NewtonSimulator(threading.Thread):
 				message = self.protocol.read_message()
 				identifier = ord(message[0])
 				data = message[1:]
-				command = connection.NewtonCommand.MAP[identifier].parse(data)
+				command = powerpod.NewtonCommand.MAP[identifier].parse(data)
 				if (identifier, last_identifier) in [(0x09, 0x0e), (0x0e, 0x09)]:
 					log = LOGGER.debug
 					last_identifier = identifier
@@ -65,7 +66,7 @@ def main():
 	args = arg_parser().parse_args()
 	kwargs = {}
 	if args.port is not None:
-		kwargs['serial_connection'] = connection.NewtonSerialConnection(port=args.port)
+		kwargs['serial_connection'] = powerpod.NewtonSerialConnection(port=args.port)
 	sim = NewtonSimulator(**kwargs)
 	sim.setDaemon(True)
 	sim.start()
