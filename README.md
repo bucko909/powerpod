@@ -53,7 +53,7 @@ TODO:
 
 ## Pretending to be a PowerPod
 
-Get two cp210x USB adapters and loop one into the other. Run Isaac on a machine with one end, and `simulator.py` on the other. You'll need to set some globals that I've brutally sanitised out of the source code (`INITIAL_PROFILE` and `INITIAL_RIDE`, though you can just code out the latter and probably use a load of 0s as the former).
+Get two cp210x USB adapters and loop one into the other. Run Isaac on a machine with one end, and `simulator.py` on the other.
 
 I've been using this to test my understanding of the protocol. I've been testing by plugging both USB adaptors in locally and showing one to `simulator.py` and the other to Isaac running in VirtualBox.
 

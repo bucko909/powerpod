@@ -7,6 +7,7 @@ import powerpod
 
 LOGGER = logging.getLogger(__name__)
 
+INITIAL_PROFILE = '\x16\\\xda8+8\x00\x00\x00\x00\x00\x00\r\x80\xeb\x00X\x08\x00\x00\xe0~\x00\x00f\xe7\x01\x00\x0e\\\xc4>\xcb\x1aOA\x00\x00 \xc1\x00\x00\x80? \x01\x94c\x00\x00\x80?\xf9\xff\xeb\x00\xc0\x00:\x07\x01\x00U\x00\x01\x03OwI\xf0\xbbB\x00\x00\xe5\xe5\x01\x00\x01\x002\x00'
 
 class NewtonSimulator(threading.Thread):
 	firmware_version = 6.12
@@ -27,7 +28,7 @@ class NewtonSimulator(threading.Thread):
 		self.init()
 
 	def init(self):
-		self.profiles = powerpod.NewtonProfile.from_binary_get_profile_result(INITIAL_PROFILE)
+		self.profiles = [powerpod.NewtonProfile.from_binary(INITIAL_PROFILE) for _ in range(4)]
 		self.rides = [
 			powerpod.messages.NewtonRide.make(
 				[powerpod.messages.NewtonRideData(10, 0, 100, 100, 0, 0.0, 10.0, 620, 100, 200, x - 100 if x >= 100 and x < 200 else 0, 1, 5) for x in range(1000)]
