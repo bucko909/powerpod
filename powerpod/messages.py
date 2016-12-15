@@ -177,17 +177,6 @@ class GetProfileNumberCommand(StructCommand, namedtuple('GetProfileNumberCommand
 
 
 
-@add_command
-class GetProfileDataCommand(StructCommand, namedtuple('GetProfileDataCommandBase', '')):
-	IDENTIFIER = 0x1f
-	SHAPE = ''
-
-	@staticmethod
-	def get_response(simulator):
-		data = ''.join(profile.to_binary() for profile in simulator.profiles)
-		# TODO is this int32, or 2*int16 with unknown second value?
-		return struct.pack('<i', len(data)) + data
-
 PROFILE_FIELDS = [
 	('unknown_0', 'h'),
 	('sample_smooth', 'h', {14554: 1, 14546: 5}),
@@ -230,6 +219,7 @@ PROFILE_FIELDS = [
 class NewtonProfile(object):
 	__slots__ = zip(*PROFILE_FIELDS)[0]
 	FORMAT = '<' + ''.join(zip(*PROFILE_FIELDS)[1])
+	SIZE = struct.Struct(FORMAT).size
 	def __init__(self, *args):
 		for name, value in zip(self.__slots__, args):
 			setattr(self, name, value)
@@ -238,19 +228,39 @@ class NewtonProfile(object):
 		return struct.pack(self.FORMAT, *[getattr(self, name) for name in self.__slots__])
 
 	@classmethod
-	def from_binary_get_profile_result(cls, data):
-		length_part = data[:4]
-		# TODO is this int32 or int16*2?
-		length = struct.unpack('<i', length_part)[0]
-		assert length == 328, (length, repr(data))
-		return [cls.from_binary(data[4 + i * 82:86 + i * 82]) for i in range(4)]
-
-	@classmethod
 	def from_binary(cls, data):
 		return cls(*struct.unpack(cls.FORMAT, data))
 
 	def __repr__(self):
 		return '{}({})'.format(self.__class__.__name__, ', '.join(repr(getattr(self, name)) for name in self.__slots__))
+
+class GetProfileDataResponse(StructType, namedtuple('GetProfileDataResponse', 'profiles')):
+	LENGTH = 4
+	# TODO is this int32 length or int16 length and something else?
+	SHAPE = '<i' + str(LENGTH * NewtonProfile.SIZE) + 's'
+
+	@classmethod
+	def from_simulator(cls, _command, simulator):
+		assert len(simulator.profiles) == cls.LENGTH
+		return cls(simulator.profiles)
+
+	@classmethod
+	def _decode(cls, length, data):
+		assert length == cls.LENGTH
+		assert len(data) == NewtonProfile.SIZE * length
+		return [
+				NewtonProfile.from_binary(data[x * NewtonProfile.SIZE:(x + 1) * NewtonProfile.SIZE])
+				for x in range(length)
+		]
+
+	def _encode(self):
+		return (len(self.profiles), ''.join(profile.to_binary() for profile in self.profiles))
+
+@add_command
+class GetProfileDataCommand(StructCommand, namedtuple('GetProfileDataCommandBase', '')):
+	IDENTIFIER = 0x1f
+	SHAPE = ''
+	RESPONSE = GetProfileDataResponse
 
 
 
