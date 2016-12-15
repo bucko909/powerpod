@@ -44,6 +44,8 @@ class StructCommand(NewtonCommand, StructType):
 	def to_binary(self):
 		return struct.pack('b', self.IDENTIFIER) + super(StructCommand, self).to_binary()
 
+
+
 @add_command
 class SetTimeCommand(NewtonCommand, namedtuple('SetTimeCommandBase', 'unknown newton_time')):
 	# Is the unknown1 optional? I've seen this sent without it...
@@ -85,6 +87,8 @@ class NewtonTime(namedtuple('NewtonTime', zip(*TIME_FIELDS)[0])):
 
 	def to_binary(self):
 		return struct.pack(TIME_SHAPE, *self)
+
+
 
 class GetFileCountResponse(StructType, namedtuple('GetFileCountResponse', 'count')):
 	SHAPE = '<h'
