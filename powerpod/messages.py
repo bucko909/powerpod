@@ -216,23 +216,9 @@ PROFILE_FIELDS = [
 	('power_smoothing_seconds', 'H'),
 	('unknown_c', 'h'),
 ]
-class NewtonProfile(object):
-	__slots__ = zip(*PROFILE_FIELDS)[0]
-	FORMAT = '<' + ''.join(zip(*PROFILE_FIELDS)[1])
-	SIZE = struct.Struct(FORMAT).size
-	def __init__(self, *args):
-		for name, value in zip(self.__slots__, args):
-			setattr(self, name, value)
-
-	def to_binary(self):
-		return struct.pack(self.FORMAT, *[getattr(self, name) for name in self.__slots__])
-
-	@classmethod
-	def from_binary(cls, data):
-		return cls(*struct.unpack(cls.FORMAT, data))
-
-	def __repr__(self):
-		return '{}({})'.format(self.__class__.__name__, ', '.join(repr(getattr(self, name)) for name in self.__slots__))
+class NewtonProfile(StructType, namedtuple('NewtonProfile', zip(*PROFILE_FIELDS)[0])):
+	SHAPE = '<' + ''.join(zip(*PROFILE_FIELDS)[1])
+	SIZE = struct.Struct(SHAPE).size
 
 class GetProfileDataResponse(StructType, namedtuple('GetProfileDataResponse', 'profiles')):
 	LENGTH = 4
