@@ -1,5 +1,6 @@
 from collections import namedtuple
 import datetime
+import calendar
 import struct
 
 class NewtonCommand(object):
@@ -65,13 +66,18 @@ TIME_FIELDS = [
 	('hours', 'b'),
 	('day', 'b'),
 	('month', 'b'),
-	('unknown', 'b'),
+	('month_length', 'b'),
 	('year', 'h'),
 ]
 TIME_SHAPE = '<' + ''.join(zip(*TIME_FIELDS)[1])
 class NewtonTime(namedtuple('NewtonTime', zip(*TIME_FIELDS)[0])):
 	def as_datetime(self):
 		return datetime.datetime(self.year, self.month, self.day, self.hours, self.mins, self.secs)
+
+	@classmethod
+	def from_datetime(cls, datetime):
+		days_in_month = calendar.monthrange(datetime.year, datetime.month)[1]
+		return cls(datetime.second, datetime.minute, datetime.hour, datetime.day, datetime.month, days_in_month, datetime.year)
 
 	@classmethod
 	def from_binary(cls, data):
