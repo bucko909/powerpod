@@ -118,13 +118,21 @@ class GetSerialNumberCommand(StructCommand, namedtuple('GetSerialNumberCommandBa
 	SHAPE = ''
 	RESPONSE = GetSerialNumberResponse
 
-@add_command
-class GetFirmwareVersionCommand(StructCommand, namedtuple('GetFirmwareVersionCommandBase', '')):
-	IDENTIFIER = 0x0e
-	SHAPE = ''
+
+
+class GetFirmwareVersionResponse(StructType, namedtuple('GetFirmwareVersionResponse', 'version_encoded')):
+	SHAPE = '<h'
+
+	@classmethod
+	def from_simulator(cls, _command, simulator):
+		return cls.from_version(simulator.firmware_version)
+
+	@classmethod
+	def from_version(cls, version_number):
+		return cls(cls.encode_version(version_number))
 
 	@staticmethod
-	def get_response(simulator):
+	def encode_version(version_number):
 		# jamming data into Isaac:
 		# 5800 == sadness
 		# 5801 == 3.44
@@ -137,7 +145,22 @@ class GetFirmwareVersionCommand(StructCommand, namedtuple('GetFirmwareVersionCom
 		# 5803 == 3.56
 		# 5804 == 6.12
 		# 5805 == 8.68
-		return struct.pack('<h', int(simulator.firmware_version * 100 + 500))
+		return int(version_number * 100 + 500)
+
+	@property
+	def version(self):
+		if self.version_encoded > 0x0200:
+			return self.version_encoded / 100.0 - 5
+		else:
+			return self.version_encoded / 100.0
+
+@add_command
+class GetFirmwareVersionCommand(StructCommand, namedtuple('GetFirmwareVersionCommandBase', '')):
+	IDENTIFIER = 0x0e
+	SHAPE = ''
+	RESPONSE = GetFirmwareVersionResponse
+
+
 
 @add_command
 class GetProfileNumberCommand(StructCommand, namedtuple('GetProfileNumberCommandBase', '')):
