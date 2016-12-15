@@ -162,14 +162,20 @@ class GetFirmwareVersionCommand(StructCommand, namedtuple('GetFirmwareVersionCom
 
 
 
+class GetProfileNumberResponse(StructType, namedtuple('GetProfileNumberResponse', 'number')):
+	SHAPE = '<h'
+
+	@classmethod
+	def from_simulator(cls, _command, _simulator):
+		return cls(0)
+
 @add_command
 class GetProfileNumberCommand(StructCommand, namedtuple('GetProfileNumberCommandBase', '')):
 	IDENTIFIER = 0x1c
 	SHAPE = ''
+	RESPONSE = GetProfileNumberResponse
 
-	@staticmethod
-	def get_response(_simulator):
-		return '\x00\x00'
+
 
 @add_command
 class GetProfileDataCommand(StructCommand, namedtuple('GetProfileDataCommandBase', '')):
@@ -245,6 +251,8 @@ class NewtonProfile(object):
 
 	def __repr__(self):
 		return '{}({})'.format(self.__class__.__name__, ', '.join(repr(getattr(self, name)) for name in self.__slots__))
+
+
 
 class GetFileResponse(namedtuple('GetFileResponse', 'ride_data')):
 	@classmethod
