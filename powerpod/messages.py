@@ -103,9 +103,7 @@ class GetFileCountCommand(StructCommand, namedtuple('GetFileCountCommandBase', '
 	SHAPE = ''
 	RESPONSE = GetFileCountResponse
 
-	@staticmethod
-	def get_response(simulator):
-		return ''.join([chr(int(x, 16)) for x in simulator.serial_number.split('-')])
+
 
 class GetSerialNumberResponse(StructType, namedtuple('GetSerialNumberResponse', 'serial_number')):
 	SHAPE = '16s'
