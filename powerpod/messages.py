@@ -7,7 +7,7 @@ class NewtonCommand(object):
 	MAP = {}
 
 	def get_response(self, simulator):
-		return self.RESPONSE.from_simulator(self, simulator).get_binary()
+		return self.RESPONSE.from_simulator(self, simulator).to_binary()
 
 def add_command(cls):
 	NewtonCommand.MAP[cls.IDENTIFIER] = cls
@@ -23,7 +23,7 @@ class StructType(object):
 		""" data from unpack -> data for __init__ """
 		return args
 
-	def get_binary(self):
+	def to_binary(self):
 		return struct.pack(self.SHAPE, *self._encode())
 
 	def _encode(self):
@@ -41,8 +41,8 @@ class StructCommand(NewtonCommand, StructType):
 		# TODO sort out this mess
 		return super(StructCommand, cls).from_binary(data)
 
-	def get_binary(self):
-		return struct.pack('b', self.IDENTIFIER) + super(StructCommand, self).get_binary()
+	def to_binary(self):
+		return struct.pack('b', self.IDENTIFIER) + super(StructCommand, self).to_binary()
 
 @add_command
 class SetTimeCommand(NewtonCommand, namedtuple('SetTimeCommandBase', 'unknown newton_time')):
@@ -83,7 +83,7 @@ class NewtonTime(namedtuple('NewtonTime', zip(*TIME_FIELDS)[0])):
 	def from_binary(cls, data):
 		return cls(*struct.unpack(TIME_SHAPE, data))
 
-	def get_binary(self):
+	def to_binary(self):
 		return struct.pack(TIME_SHAPE, *self)
 
 class GetFileCountResponse(StructType, namedtuple('GetFileCountResponse', 'count')):
@@ -153,7 +153,7 @@ class GetProfileDataCommand(StructCommand, namedtuple('GetProfileDataCommandBase
 
 	@staticmethod
 	def get_response(simulator):
-		data = ''.join(profile.get_binary() for profile in simulator.profiles)
+		data = ''.join(profile.to_binary() for profile in simulator.profiles)
 		# TODO is this int32, or 2*int16 with unknown second value?
 		return struct.pack('<i', len(data)) + data
 
@@ -203,7 +203,7 @@ class NewtonProfile(object):
 		for name, value in zip(self.__slots__, args):
 			setattr(self, name, value)
 
-	def get_binary(self):
+	def to_binary(self):
 		return struct.pack(self.FORMAT, *[getattr(self, name) for name in self.__slots__])
 
 	@classmethod
@@ -226,8 +226,8 @@ class GetFileResponse(namedtuple('GetFileResponse', 'ride_data')):
 	def parse(cls, data):
 		return cls(NewtonRide.from_binary(data))
 
-	def get_binary(self):
-		return self.ride_data.get_binary()
+	def to_binary(self):
+		return self.ride_data.to_binary()
 
 	@classmethod
 	def from_simulator(cls, command, simulator):
@@ -252,7 +252,7 @@ RIDE_FIELDS = [
 	('wheel_circumference_mm', 'f', IDENTITY, IDENTITY, 2136.0), # byte 30, always integer?!
 	('unknown_1', 'h', IDENTITY, IDENTITY, 15), # byte 34, 0x0f00 and 0x0e00 and 0x0e00 observed; multiplying by 10 does nothing observable.
 	('unknown_2', 'h', IDENTITY, IDENTITY, 1), # byte 36, =1?
-	('start_time', '8s', NewtonTime.from_binary, NewtonTime.get_binary, NewtonTime(0, 0, 0, 1, 1, 31, 2000)), # byte 38
+	('start_time', '8s', NewtonTime.from_binary, NewtonTime.to_binary, NewtonTime(0, 0, 0, 1, 1, 31, 2000)), # byte 38
 	('pressure_Pa', 'i', IDENTITY, IDENTITY, 101325), # byte 46, appears to be pressure in Pa (observed range 100121-103175) # (setting, reported) = [(113175, 1113), (103175, 1014), (93175, 915), (203175, 1996), (1e9, 9825490), (2e9, 19650979), (-2e9, -19650979)]. Reported value in Isaac (hPa) is this divided by ~101.7761 or multiplied by 0.00982549. This isn't affected by truncating the ride at all. It /is/ affected by unknown_3; if I make unknown_3 -73 from 73, I get (-2e9, -19521083).
 	('Cm', 'f', IDENTITY, IDENTITY, 1.0204), # byte 50
 	('average_temperature_farenheit', 'h', IDENTITY, IDENTITY, 73), # byte 54. Average of temperature records. Does not affect displayed temperature in Isaac. It affects displayed pressure in Isaac (bigger temp = closer to pressure_Pa).
@@ -323,9 +323,9 @@ class NewtonRide(object):
 		data = map(NewtonRideData.from_binary, (data_part[x:x+15] for x in range(0, len(data_part), 15)))
 		return cls(*([decode(val) for val, decode in zip(struct.unpack(cls.FORMAT, fixed_part), RIDE_DECODE)] + [data]))
 
-	def get_binary(self):
+	def to_binary(self):
 		fixed_part = struct.pack(self.FORMAT, *[encode(getattr(self, name)) for name, encode in zip(self.__slots__[:-1], RIDE_ENCODE)])
-		data_part = ''.join(x.get_binary() for x in self.data)
+		data_part = ''.join(x.to_binary() for x in self.data)
 		return fixed_part + data_part
 
 	def get_header(self):
@@ -379,8 +379,8 @@ class NewtonRideHeader(namedtuple('NewtonRideHeader', 'unknown_0 start_time dist
 	SHAPE = '<h8sf'
 	SIZE = 14
 
-	def get_binary(self):
-		return struct.pack(self.SHAPE, self.unknown_0, self.start_time.get_binary(), self.distance_metres)
+	def to_binary(self):
+		return struct.pack(self.SHAPE, self.unknown_0, self.start_time.to_binary(), self.distance_metres)
 
 	@classmethod
 	def parse(cls, data):
@@ -486,7 +486,7 @@ class NewtonRideData(object):
 			vals.append(decode(value))
 		return cls(*vals)
 
-	def get_binary(self):
+	def to_binary(self):
 		vals = []
 		for name, size, _decode, encode in RIDE_DATA_FIELDS:
 			value = getattr(self, name)
@@ -527,16 +527,16 @@ class NewtonRideDataPaused(namedtuple('NewtonRideDataPaused', 'tag newton_time u
 		tag, time_bin, unknown_3 = struct.unpack('<6s8sb', data)
 		return cls(tag, NewtonTime.from_binary(time_bin), unknown_3)
 
-	def get_binary(self):
-		return struct.pack('<6s8sb', self.tag, self.newton_time.get_binary(), self.unknown_3)
+	def to_binary(self):
+		return struct.pack('<6s8sb', self.tag, self.newton_time.to_binary(), self.unknown_3)
 
 class GetFileListResponse(namedtuple('GetFileListResponse', 'headers')):
 	@classmethod
 	def parse(cls, data):
 		return cls(NewtonRideHeader.parse_list(data))
 
-	def get_binary(self):
-		return struct.pack('<h', len(self.headers)) + ''.join(header.get_binary() for header in self.headers)
+	def to_binary(self):
+		return struct.pack('<h', len(self.headers)) + ''.join(header.to_binary() for header in self.headers)
 
 	@classmethod
 	def from_simulator(cls, _command, simulator):
