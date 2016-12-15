@@ -284,7 +284,16 @@ RIDE_FIELDS = [
 	('start_time', '8s', NewtonTime.from_binary, NewtonTime.to_binary, NewtonTime(0, 0, 0, 1, 1, 31, 2000)), # byte 38
 	('pressure_Pa', 'i', IDENTITY, IDENTITY, 101325), # byte 46, appears to be pressure in Pa (observed range 100121-103175) # (setting, reported) = [(113175, 1113), (103175, 1014), (93175, 915), (203175, 1996), (1e9, 9825490), (2e9, 19650979), (-2e9, -19650979)]. Reported value in Isaac (hPa) is this divided by ~101.7761 or multiplied by 0.00982549. This isn't affected by truncating the ride at all. It /is/ affected by unknown_3; if I make unknown_3 -73 from 73, I get (-2e9, -19521083).
 	('Cm', 'f', IDENTITY, IDENTITY, 1.0204), # byte 50
-	('average_temperature_farenheit', 'h', IDENTITY, IDENTITY, 73), # byte 54. Average of temperature records. Does not affect displayed temperature in Isaac. It affects displayed pressure in Isaac (bigger temp = closer to pressure_Pa).
+	# average_temperature_farenheit = Average of temperature records. Does not affect displayed temperature in Isaac. It affects displayed pressure in Isaac (bigger temp = closer to pressure_Pa).
+	# pressure_Pa = 103175
+	# average_temperature_farenheit = 1, pressure = 1011mbar
+	# average_temperature_farenheit = 100, pressure = 1015mbar
+	# average_temperature_farenheit = 10000, pressure = 1031mbar
+	# pressure_Pa = 1e9
+	# average_temperature_farenheit = 1, pressure = 9798543mbar
+	# average_temperature_farenheit = 100, pressure = 9833825mbar
+	# average_temperature_farenheit = 10000, pressure = 9991024mbar
+	('average_temperature_farenheit', 'h', IDENTITY, IDENTITY, 73), # byte 54.
 	('wind_scaling_sqrt', 'f', IDENTITY, IDENTITY, 1.0), # byte 56
 	('riding_tilt_times_10', 'h', IDENTITY, IDENTITY, 0.0), # byte 60
 	('cal_mass_lb', 'h', IDENTITY, IDENTITY, 235), # byte 62
@@ -300,36 +309,13 @@ RIDE_FIELDS = [
 RIDE_DECODE = zip(*RIDE_FIELDS)[2]
 RIDE_ENCODE = zip(*RIDE_FIELDS)[3]
 RIDE_DEFAULTS = {key: value for key, _, _, _, value in RIDE_FIELDS}
-class NewtonRide(object):
-	__slots__ = zip(*RIDE_FIELDS)[0] + ('data',)
-	FORMAT = '<' + ''.join(zip(*RIDE_FIELDS)[1])
-	def __init__(self, *args):
-		for name, value in zip(self.__slots__, args):
-			setattr(self, name, value)
-		return
-		self.wind_scaling_sqrt = 1.4
-		data = [x for x in self.data if hasattr(x, 'temperature_farenheit')]
-		#self.data_records = min(self.data_records, 100)
-		#self.data = self.data[:100]
-		#self.pressure_Pa = 2000000000
-		print "pressure: %s" % self.pressure_Pa
-		#self.unknown_3 = self.unknown_3
-		# pressure_Pa = 103175
-		# unknown_3 = 1, pressure = 1011mbar
-		# unknown_3 = 100, pressure = 1015mbar
-		# unknown_3 = 10000, pressure = 1031mbar
-		self.pressure_Pa = int(1e9)
-		# pressure_Pa = 1e9
-		# unknown_3 = 1, pressure = 9798543mbar
-		# unknown_3 = 100, pressure = 9833825mbar
-		# unknown_3 = 10000, pressure = 9991024mbar
-		#self.wind_scaling_sqrt = 2.0
-		#self.unknown_5 *= 10
+class NewtonRide(namedtuple('NewtonRide', zip(*RIDE_FIELDS)[0] + ('data',))):
+	SHAPE = '<' + ''.join(zip(*RIDE_FIELDS)[1])
 
 	@classmethod
 	def make(cls, data, **kwargs):
 		kwargs = {}
-		for name in cls.__slots__[:-1]:
+		for name in cls._fields[:-1]:
 			kwargs[name] = RIDE_DEFAULTS[name]
 
 		kwargs['data'] = data
@@ -341,7 +327,7 @@ class NewtonRide(object):
 			kwargs['energy_kJ'] = int(round(sum(x.power_watts for x in data if hasattr(x, 'power_watts')) / 1000))
 
 		args = []
-		for name in cls.__slots__:
+		for name in cls._fields:
 			args.append(kwargs[name])
 		return cls(*args)
 
@@ -350,10 +336,10 @@ class NewtonRide(object):
 		fixed_part = data[:82]
 		data_part = data[82:]
 		data = map(NewtonRideData.from_binary, (data_part[x:x+15] for x in range(0, len(data_part), 15)))
-		return cls(*([decode(val) for val, decode in zip(struct.unpack(cls.FORMAT, fixed_part), RIDE_DECODE)] + [data]))
+		return cls(*([decode(val) for val, decode in zip(struct.unpack(cls.SHAPE, fixed_part), RIDE_DECODE)] + [data]))
 
 	def to_binary(self):
-		fixed_part = struct.pack(self.FORMAT, *[encode(getattr(self, name)) for name, encode in zip(self.__slots__[:-1], RIDE_ENCODE)])
+		fixed_part = struct.pack(self.SHAPE, *[encode(getattr(self, name)) for name, encode in zip(self._fields[:-1], RIDE_ENCODE)])
 		data_part = ''.join(x.to_binary() for x in self.data)
 		return fixed_part + data_part
 
@@ -397,9 +383,6 @@ class NewtonRide(object):
 		compare = [(x, y) for x, y in zip(pure_records, csv_data)]
 		get_errors = lambda mul: [(pure_record.density(), pure_record.elevation_feet, csv_datum, pure_record.elevation_feet - csv_datum, (pure_record.wind_tube_pressure_difference - self.wind_tube_pressure_offset), pure_record.tilt, pure_record.unknown_0, pure_record) for pure_record, csv_datum in compare]
 		return get_errors(0.1)
-
-	def __repr__(self):
-		return '{}({})'.format(self.__class__.__name__, ', '.join(repr(getattr(self, name)) for name in self.__slots__))
 
 class NewtonRideHeader(namedtuple('NewtonRideHeader', 'unknown_0 start_time distance_metres')):
 	# \x11\x00
