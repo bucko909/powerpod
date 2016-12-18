@@ -352,7 +352,7 @@ SET_PROFILE_FIELDS = [
 		('unknown_9', 'h'), # Verified equal to Profile. Values include 1850
 		('ftp_per_kilo_ish', 'h'),
 		('ftp_over_095', 'h'),
-		('unknown_a', 'h'),
+		('unknown_a', 'h'), # Verified equal to Profile.
 ]
 class SetProfileDataResponse(object):
 	@staticmethod
