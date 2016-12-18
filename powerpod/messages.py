@@ -88,7 +88,7 @@ class StructCommand(NewtonCommand, StructType):
 
 
 @add_command
-class SetTimeCommand(NewtonCommand, namedtuple('SetTimeCommandBase', 'unknown newton_time')):
+class SetTimeCommand(NewtonCommand, namedtuple('SetTimeCommand', 'unknown newton_time')):
 	# Is the unknown1 optional? I've seen this sent without it...
 	IDENTIFIER = 0x04
 	SHAPE = '<b8s'
@@ -140,7 +140,7 @@ class GetSpaceUsageResponse(StructType, namedtuple('GetSpaceUsageResponse', 'use
 		return cls(199)
 
 @add_command
-class GetSpaceUsageCommand(StructCommand, namedtuple('GetSpaceUsageCommandBase', '')):
+class GetSpaceUsageCommand(StructCommand, namedtuple('GetSpaceUsageCommand', '')):
 	IDENTIFIER = 0x08
 	SHAPE = ''
 	RESPONSE = GetSpaceUsageResponse
@@ -155,7 +155,7 @@ class GetSerialNumberResponse(StructType, namedtuple('GetSerialNumberResponse', 
 		return cls(''.join(chr(int(x, 16)) for x in simulator.serial_number.split('-')))
 
 @add_command
-class GetSerialNumberCommand(StructCommand, namedtuple('GetSerialNumberCommandBase', '')):
+class GetSerialNumberCommand(StructCommand, namedtuple('GetSerialNumberCommand', '')):
 	IDENTIFIER = 0x09
 	SHAPE = ''
 	RESPONSE = GetSerialNumberResponse
@@ -197,7 +197,7 @@ class GetFirmwareVersionResponse(StructType, namedtuple('GetFirmwareVersionRespo
 			return self.version_encoded / 100.0
 
 @add_command
-class GetFirmwareVersionCommand(StructCommand, namedtuple('GetFirmwareVersionCommandBase', '')):
+class GetFirmwareVersionCommand(StructCommand, namedtuple('GetFirmwareVersionCommand', '')):
 	IDENTIFIER = 0x0e
 	SHAPE = ''
 	RESPONSE = GetFirmwareVersionResponse
@@ -212,7 +212,7 @@ class GetProfileNumberResponse(StructType, namedtuple('GetProfileNumberResponse'
 		return cls(0)
 
 @add_command
-class GetProfileNumberCommand(StructCommand, namedtuple('GetProfileNumberCommandBase', '')):
+class GetProfileNumberCommand(StructCommand, namedtuple('GetProfileNumberCommand', '')):
 	IDENTIFIER = 0x1c
 	SHAPE = ''
 	RESPONSE = GetProfileNumberResponse
@@ -285,7 +285,7 @@ class GetProfileDataResponse(StructType, namedtuple('GetProfileDataResponse', 'p
 		return (len(self.profiles), ''.join(profile.to_binary() for profile in self.profiles))
 
 @add_command
-class GetProfileDataCommand(StructCommand, namedtuple('GetProfileDataCommandBase', '')):
+class GetProfileDataCommand(StructCommand, namedtuple('GetProfileDataCommand', '')):
 	IDENTIFIER = 0x1f
 	SHAPE = ''
 	RESPONSE = GetProfileDataResponse
@@ -305,7 +305,7 @@ class GetFileResponse(namedtuple('GetFileResponse', 'ride_data')):
 		return cls(simulator.rides[command.ride_number])
 
 @add_command
-class GetFileCommand(StructCommand, namedtuple('GetFileCommandBase', 'ride_number')):
+class GetFileCommand(StructCommand, namedtuple('GetFileCommand', 'ride_number')):
 	IDENTIFIER = 0x20
 	SHAPE = '<h'
 	RESPONSE = GetFileResponse
@@ -557,7 +557,7 @@ class GetFileListResponse(StructListType, namedtuple('GetFileListResponse', 'siz
 		return cls(len(simulator.rides), [ride.get_header() for ride in simulator.rides])
 
 @add_command
-class GetFileListCommand(StructCommand, namedtuple('GetFileListCommandBase', '')):
+class GetFileListCommand(StructCommand, namedtuple('GetFileListCommand', '')):
 	IDENTIFIER = 0x21
 	SHAPE = ''
 	RESPONSE = GetFileListResponse
@@ -572,7 +572,7 @@ class UnknownCommandResponse(StructType, namedtuple('UnknownCommandResponse', 'u
 		return cls(2, 0)
 
 @add_command
-class UnknownCommand(StructCommand, namedtuple('UnknownCommandBase', '')):
+class UnknownCommand(StructCommand, namedtuple('UnknownCommand', '')):
 	"""
 	This is sent before GetSpaceUsageCommand...
 	"""
