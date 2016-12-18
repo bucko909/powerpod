@@ -40,12 +40,12 @@ class StructListType(object):
 		encode = struct.Struct(cls.SHAPE)
 		header_size = encode.size
 		header = encode.unpack(data[:header_size])
-		size_offset = self._fields.index('size')
+		size_offset = cls._fields.index('size')
 		record_count = header[size_offset]
-		record_size = cls.RECORD_TYPE.size
+		record_size = struct.Struct(cls.RECORD_TYPE.SHAPE).size
 		assert header_size + record_count * record_size == len(data)
 		raw_records = [data[header_size + record_size * x:header_size + record_size * (x + 1)] for x in range(record_count)]
-		return cls(*(cls._decode(*header) + (map(self.RECORD_TYPE.from_binary, raw_records),)))
+		return cls(*(cls._decode(*header) + (map(cls.RECORD_TYPE.from_binary, raw_records),)))
 
 	@staticmethod
 	def _decode(*args):
@@ -170,6 +170,7 @@ assert sum(x[1] for x in RIDE_DATA_FIELDS) == 15 * 8
 DECODE_FIFTEEN_BYTES = '{:08b}' * 15
 ENCODE_FIFTEEN_BYTES = ''.join('{:0%sb}' % (fielddef[1],) for fielddef in RIDE_DATA_FIELDS)
 class NewtonRideData(object):
+	SHAPE = '15s'
 	__slots__ = zip(*RIDE_DATA_FIELDS)[0]
 	def __init__(self, *args):
 		for name, value in zip(self.__slots__, args):
@@ -227,7 +228,7 @@ class NewtonRideDataPaused(StructType, namedtuple('NewtonRideDataPaused', 'tag n
 	SHAPE = '<6s8sb'
 
 	@staticmethod
-	def _decode(cls, tag, newton_time_raw, unknown_3):
+	def _decode(tag, newton_time_raw, unknown_3):
 		return (tag, NewtonTime.from_binary(newton_time_raw), unknown_3)
 
 	def _encode(self):

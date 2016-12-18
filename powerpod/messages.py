@@ -18,8 +18,8 @@ def add_command(cls):
 class StructCommand(NewtonCommand, StructType):
 	@classmethod
 	def from_binary(cls, data):
-		assert struct.unpack('b', data[0])[0] == self.IDENTIFIER
-		return super(StructCommand, self).from_binary(data[1:])
+		assert struct.unpack('b', data[0])[0] == cls.IDENTIFIER
+		return super(StructCommand, cls).from_binary(data[1:])
 
 	@classmethod
 	def parse(cls, data):
@@ -135,7 +135,7 @@ class GetProfileNumberCommand(StructCommand, namedtuple('GetProfileNumberCommand
 
 
 
-class GetProfileDataResponse(StructType, namedtuple('GetProfileDataResponse', 'profiles')):
+class GetProfileDataResponse(StructType, namedtuple('GetProfileDataResponse', 'size profiles')):
 	LENGTH = 4
 	# TODO is this int32 length or int16 length and something else?
 	SHAPE = '<i' + str(LENGTH * NewtonProfile.SIZE) + 's'
@@ -147,11 +147,11 @@ class GetProfileDataResponse(StructType, namedtuple('GetProfileDataResponse', 'p
 
 	@classmethod
 	def _decode(cls, length, data):
-		assert length == cls.LENGTH
-		assert len(data) == NewtonProfile.SIZE * length
-		return [
+		assert length == cls.LENGTH * NewtonProfile.SIZE, (length, data)
+		assert length == len(data), (length, len(data), data)
+		return length, [
 				NewtonProfile.from_binary(data[x * NewtonProfile.SIZE:(x + 1) * NewtonProfile.SIZE])
-				for x in range(length)
+				for x in range(cls.LENGTH)
 		]
 
 	def _encode(self):
@@ -168,6 +168,10 @@ class GetProfileDataCommand(StructCommand, namedtuple('GetProfileDataCommand', '
 class GetFileResponse(namedtuple('GetFileResponse', 'ride_data')):
 	@classmethod
 	def parse(cls, data):
+		return cls(NewtonRide.from_binary(data))
+
+	@classmethod
+	def from_binary(cls, data):
 		return cls(NewtonRide.from_binary(data))
 
 	def to_binary(self):

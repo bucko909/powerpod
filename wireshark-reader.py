@@ -7,6 +7,7 @@ from collections import deque
 import ipdb
 import logging
 import sys
+import traceback
 
 import powerpod
 
@@ -28,7 +29,7 @@ class LogReader(object):
 			# Data comes out in colon-sep hex form
 			data = ''.join(chr(int(x, 16)) for x in data_str.split(':'))
 			self.queue.append((timestamp, to_device, data))
-			print timestamp, to_device, repr(data)
+			#print timestamp, to_device, repr(data)
 
 	def device_read(self):
 		if self.queue[0][1]:
@@ -83,14 +84,32 @@ def main():
 	while reader.queue:
 		try:
 			command = host_protocol.read_message()
-			print "->", repr(command)
+			cmd_id = ord(command[0])
+			command_type = powerpod.messages.NewtonCommand.MAP.get(cmd_id)
+			if command_type is not None:
+				try:
+					parsed = command_type.from_binary(command)
+					print "->", parsed
+				except:
+					print "-> ERROR: ", repr(command)
+					traceback.print_exc()
+			else:
+				print "-> UNKNOWN: ", repr(command)
 			# TODO
 			# After a \x07 (erase all), the device responds '\x00' twice. Once is command ack, twice I guess means "yep, done!"
 			# After a \x1a (set profile) and \x1e ("post set profile") and \x1d (set profile number), the device has no response at all.
 			# Interrupts are also really common when executing set profile.
 			if command[0] != '\x04':
 				response = device_protocol.read_message()
-				print "<-", repr(response)
+				if command_type is not None:
+					try:
+						parsed = command_type.RESPONSE.from_binary(response)
+						print "<-", parsed
+					except:
+						print "<- ERROR: ", repr(command)
+						traceback.print_exc()
+				else:
+					print "<- UNKNOWN: ", repr(command)
 		except:
 			import traceback
 			traceback.print_exc()
