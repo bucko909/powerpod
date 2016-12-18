@@ -164,6 +164,50 @@ class NewtonProfile(StructType, namedtuple('NewtonProfile', zip(*PROFILE_FIELDS)
 		assert args[cls._fields.index('unknown_c')] == 50, args[cls._fields.index('unknown_c')]
 		return args
 
+	@classmethod
+	def default(cls):
+		return cls(
+				total_mass_lb=205,
+				user_edited=32780,
+				wheel_circumference_mm=2096,
+				sample_smoothing=10251,
+				aero=0.4889250099658966,
+				fric=11.310999870300293,
+				unknown_6=0.0,
+				unknown_7=0.0,
+				wind_scaling_sqrt=1.1510859727859497,
+				speed_id=0,
+				cadence_id=0,
+				hr_id=0,
+				power_id=0,
+				speed_type=0,
+				cadence_type=0,
+				hr_type=0,
+				power_type=0,
+				tilt_mult_10=-7,
+				cal_mass_lb=205,
+				rider_mass_lb=180,
+				unknown_9=1803,
+				ftp_per_kilo_ish=1,
+				ftp_over_095=85,
+				unknown_a=769,
+				# ^^ SetProfileData
+				power_smoothing_seconds=1,
+				unknown_c=50,
+				# ^^ SetProfileData2
+				unknown_0=0x5c16,
+				unknown_1=0x382b,
+				null_1=0,
+				null_2=0,
+				null_3=0,
+				unknown_3=0,
+				unknown_2=0,
+				unknown_4=0,
+				unknown_5=0,
+				unknown_8=1670644000,
+				# ^^^ Complete unknowns
+		)
+
 
 def swap_endian(x):
 	return (x >> 8) + ((x & ((1 << 8) - 1)) << 8)
