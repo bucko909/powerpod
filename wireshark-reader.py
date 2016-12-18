@@ -111,7 +111,6 @@ def main():
 				else:
 					print "<- UNKNOWN: ", repr(command)
 		except:
-			import traceback
 			traceback.print_exc()
 			while reader.queue[0][1:] != (True, '\x80'):
 				print "Dropping", reader.queue.popleft()
