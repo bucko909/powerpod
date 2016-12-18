@@ -101,7 +101,7 @@ records = {
 		'newton_heartrate': lambda record, _ride: record.heart_rate,
 		'newton_cadence': lambda record, _ride: record.cadence,
 		'newton_ground_velocity': lambda record, _ride: round(record.speed_mph * 1.602, 2),
-		'newton_air_velocity': lambda record, ride: round(record.wind_speed_kph(offset=ride.wind_tube_pressure_offset - 10, reference_pressure_kPa=ride.reference_pressure_Pa / 1000., reference_temperature_kelvin=ride.reference_temperature_kelvin, wind_scaling_sqrt=ride.wind_scaling_sqrt), 2),
+		'newton_air_velocity': lambda record, ride: round(record.wind_speed_kph(offset=ride.wind_tube_pressure_offset - 10, reference_pressure_Pa=ride.reference_pressure_Pa, reference_temperature_kelvin=ride.reference_temperature_kelvin, wind_scaling_sqrt=ride.wind_scaling_sqrt), 2),
 		'newton_slope': lambda record, _ride: round(record.tilt, 1),
 		'newton_temp': lambda record, _ride: round(record.temperature_kelvin - 273.15, 2),
 		'newton_elevation': lambda record, _ride: round(record.elevation_metres, 2),

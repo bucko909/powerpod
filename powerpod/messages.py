@@ -479,23 +479,23 @@ class NewtonRideData(object):
 	def elevation_metres(self):
 		return self.elevation_feet * 0.3048
 
-	def pressure_kPa(self, reference_pressure_kPa=101.325, reference_temperature_kelvin=288.15):
-		return reference_pressure_kPa * (1 - (0.0065 * self.elevation_metres) / reference_temperature_kelvin) ** (9.80665 * 0.0289644 / 8.31447 / 0.0065)
+	def pressure_Pa(self, reference_pressure_Pa=101325, reference_temperature_kelvin=288.15):
+		return reference_pressure_Pa * (1 - (0.0065 * self.elevation_metres) / reference_temperature_kelvin) ** (9.80665 * 0.0289644 / 8.31447 / 0.0065)
 
 	@property
 	def temperature_kelvin(self):
 		return (self.temperature_farenheit + 459.67) * 5 / 9
 
-	def density(self, reference_pressure_kPa=101.325, reference_temperature_kelvin=288.15):
+	def density(self, reference_pressure_Pa=101325, reference_temperature_kelvin=288.15):
 		# I say 0.8773 at 22.7778C/2516.7336m; they say 0.8768. Good enough...
 		# Constants from Wikipedia.
-		return self.pressure_kPa(reference_pressure_kPa, reference_temperature_kelvin) * 1000 * 0.0289644 / 8.31447 / self.temperature_kelvin
+		return self.pressure_Pa(reference_pressure_Pa, reference_temperature_kelvin) * 0.0289644 / 8.31447 / self.temperature_kelvin
 
-	def wind_speed_kph(self, offset=621, multiplier=13.6355, reference_pressure_kPa=101.325, reference_temperature_kelvin=288.15, wind_scaling_sqrt=1.0):
-		# Based on solving from CSV file
+	def wind_speed_kph(self, offset=621, multiplier=13.6355, reference_pressure_Pa=101325, reference_temperature_kelvin=288.15, wind_scaling_sqrt=1.0):
+		# multiplier based on solving from CSV file
 		if self.wind_tube_pressure_difference < offset:
 			return 0.0
-		return ((self.wind_tube_pressure_difference - offset) / self.density(reference_pressure_kPa, reference_temperature_kelvin) * multiplier) ** 0.5 * wind_scaling_sqrt
+		return ((self.wind_tube_pressure_difference - offset) / self.density(reference_pressure_Pa, reference_temperature_kelvin) * multiplier) ** 0.5 * wind_scaling_sqrt
 
 	def __repr__(self):
 		return '{}({})'.format(self.__class__.__name__, ', '.join(repr(getattr(self, name)) for name in self.__slots__))
