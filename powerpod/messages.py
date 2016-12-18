@@ -131,18 +131,19 @@ class NewtonTime(namedtuple('NewtonTime', zip(*TIME_FIELDS)[0])):
 
 
 
-class GetFileCountResponse(StructType, namedtuple('GetFileCountResponse', 'count')):
+class GetSpaceUsageResponse(StructType, namedtuple('GetSpaceUsageResponse', 'used_percentage')):
 	SHAPE = '<h'
 
 	@classmethod
 	def from_simulator(cls, _command, simulator):
-		return cls(len(simulator.rides))
+		# Hope you like having no free space!
+		return cls(199)
 
 @add_command
-class GetFileCountCommand(StructCommand, namedtuple('GetFileCountCommandBase', '')):
+class GetSpaceUsageCommand(StructCommand, namedtuple('GetSpaceUsageCommandBase', '')):
 	IDENTIFIER = 0x08
 	SHAPE = ''
-	RESPONSE = GetFileCountResponse
+	RESPONSE = GetSpaceUsageResponse
 
 
 
@@ -572,7 +573,9 @@ class UnknownCommandResponse(StructType, namedtuple('UnknownCommandResponse', 'u
 
 @add_command
 class UnknownCommand(StructCommand, namedtuple('UnknownCommandBase', '')):
-	""" This is sent before GetFileListCommand... """
+	"""
+	This is sent before GetSpaceUsageCommand...
+	"""
 	IDENTIFIER = 0x22
 	SHAPE = ''
 	RESPONSE = UnknownCommandResponse
