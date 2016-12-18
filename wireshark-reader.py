@@ -99,7 +99,7 @@ def main():
 			# After a \x07 (erase all), the device responds '\x00' twice. Once is command ack, twice I guess means "yep, done!"
 			# After a \x1a (set profile) and \x1e ("post set profile") and \x1d (set profile number), the device has no response at all.
 			# Interrupts are also really common when executing set profile.
-			if command[0] != '\x04':
+			if command_type.RESPONSE is not None:
 				response = device_protocol.read_message()
 				if command_type is not None:
 					try:

@@ -220,3 +220,150 @@ class UnknownCommand(StructCommand, namedtuple('UnknownCommand', '')):
 	IDENTIFIER = 0x22
 	SHAPE = ''
 	RESPONSE = UnknownCommandResponse
+
+
+
+@add_command
+class UploadFirmwareCommand(StructCommand, namedtuple('UploadFirmwareCommand', '')):
+	# Is followed by /lots/ of (length 37) data which violates checksum.
+	# I don't really want to work out how to decode this.
+	IDENTIFIER = 0x01
+	SHAPE = ''
+	RESPONSE = None
+
+
+
+@add_command
+class EraseAllCommand(StructCommand, namedtuple('EraseAllCommand', '')):
+	IDENTIFIER = 0x07
+	SHAPE = ''
+	RESPONSE = None
+
+
+
+@add_command
+class SetUnitsCommand(StructCommand, namedtuple('SetUnitsCommand', 'units_type')):
+	IDENTIFIER = 0x0a
+	SHAPE = '<h'
+	RESPONSE = None
+
+	METRIC = 1
+	ENGLISH = 0
+
+
+
+@add_command
+class SetOdometerCommand(StructCommand, namedtuple('SetOdometerCommand', 'odometer_distance')):
+	# Unsure of units
+	IDENTIFIER = 0x0b
+	SHAPE = '<i'
+	RESPONSE = None
+
+	def _encode(self):
+		return (int(round(self.odometer_distance * 10)),)
+
+	@classmethod
+	def _decode(cls, odometer_distance):
+		return (odometer_distance * 0.1,)
+
+
+
+@add_command
+class SetSampleRateCommand(StructCommand, namedtuple('SetSampleRateCommand', 'unknown sample_rate')):
+	IDENTIFIER = 0x0c
+	SHAPE = '<hh'
+	RESPONSE = None
+
+	SAMPLE_RATE_1_SECOND = 0
+	SAMPLE_RATE_5_SECONDS = 1
+
+	@staticmethod
+	def _decode(unknown, sample_rate):
+		# No idea what this is, but always seems to be 0
+		assert unknown == 0
+		return (unknown, sample_rate)
+
+
+
+class GetOdometerResponse(StructType, namedtuple('GetOdometerResponse', 'unknown_0 unknown_1 unknown_2 odometer_distance')):
+	# TODO unknowns are observed at 1, 1, 0
+	SHAPE = '<hhhi'
+
+	def _encode(self):
+		return (self.unknown_0, self.unknown_1, self.unknown_2, int(round(self.odometer_distance * 10)),)
+
+	@classmethod
+	def _decode(cls, unknown_0, unknown_1, unknown_2, odometer_distance):
+		assert unknown_0 == 1
+		assert unknown_1 == 1
+		assert unknown_2 == 0
+		return (unknown_0, unknown_1, unknown_2, odometer_distance * 0.1,)
+
+@add_command
+class GetOdometerCommand(StructCommand, namedtuple('GetOdometerCommand', '')):
+	IDENTIFIER = 0x0d
+	SHAPE = ''
+	RESPONSE = GetOdometerResponse
+
+
+
+@add_command
+class SetTrainerWeightsCommand(StructCommand, namedtuple('SetTrainerWeightsCommand', 'data')):
+	IDENTIFIER = 0x14
+	SHAPE = '16s' # TODO
+	RESPONSE = None
+
+
+
+class NewtonInterval(object):
+	pass # TODO
+
+@add_command
+class SetIntervalsCommand(StructCommand, namedtuple('SetIntervalsCommand', 'size records')):
+	IDENTIFIER = 0x19
+	SHAPE = '<h'
+	RECORD_TYPE = NewtonInterval
+	RESPONSE = None
+
+
+
+@add_command
+class SetProfileDataCommand(StructCommand, namedtuple('SetProfileDataCommand', 'data')):
+	IDENTIFIER = 0x1a
+	SHAPE = '58s' # TODO
+	RESPONSE = None
+
+
+
+@add_command
+class SetProfileNumberCommand(StructCommand, namedtuple('SetProfileNumberCommand', 'profile_number')):
+	IDENTIFIER = 0x1d
+	SHAPE = '<h'
+	RESPONSE = None
+
+
+
+@add_command
+class PostSetProfileDataCommand(StructCommand, namedtuple('PostSetProfileDataCommand', 'unknown_0 unknown_1')):
+	IDENTIFIER = 0x1e
+	SHAPE = '<hh' # TODO
+	RESPONSE = None
+
+
+
+@add_command
+class SetScreensCommand(StructCommand, namedtuple('SetScreensCommand', 'data')):
+	IDENTIFIER = 0x29
+	SHAPE = '18s' # TODO
+	RESPONSE = None
+
+
+
+class GetAllScreensResponse(StructType, namedtuple('GetAllScreensResponse', '')):
+	pass # TODO
+
+@add_command
+class GetAllScreensCommand(StructCommand, namedtuple('GetAllScreensCommand', '')):
+	IDENTIFIER = 0x2a
+	SHAPE = ''
+	RESPONSE = GetAllScreensResponse
