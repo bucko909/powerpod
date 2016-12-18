@@ -14,6 +14,9 @@ def add_command(cls):
 	return cls
 
 class StructType(object):
+	"""
+	Automatically uses SHAPE to pack/unpack simple structs.
+	"""
 	@classmethod
 	def from_binary(cls, data):
 		return cls(*cls._decode(*struct.unpack(cls.SHAPE, data)))
@@ -29,6 +32,44 @@ class StructType(object):
 	def _encode(self):
 		""" data from self -> data for pack """
 		return self
+
+	@property
+	def size(self):
+		return struct.Struct(self.SHAPE).size
+
+class StructListType(object):
+	"""
+	Automatically uses SHAPE to pack/unpack simple structs which are followed by lists of RECORD_TYPE records.
+
+	You must have 'size' in _fields, which must be the record count, and a 'records' field to hold the decoded records.
+
+	RECORD_TYPE must have a 'size', and a 'from_binary' function.
+	"""
+	@classmethod
+	def from_binary(cls, data):
+		encode = struct.Struct(cls.SHAPE)
+		header_size = encode.size
+		header = encode.unpack(data[:header_size])
+		size_offset = self._fields.index('size')
+		record_count = header[size_offset]
+		record_size = cls.RECORD_TYPE.size
+		assert header_size + record_count * record_size == len(data)
+		raw_records = [data[header_size + record_size * x:header_size + record_size * (x + 1)] for x in range(record_count)]
+		return cls(*(cls._decode(*header) + (map(self.RECORD_TYPE.from_binary, raw_records),)))
+
+	@staticmethod
+	def _decode(*args):
+		""" data from unpack -> data for __init__ """
+		return args
+
+	def to_binary(self):
+		assert self.size == len(self.records)
+		return struct.pack(self.SHAPE, *self._encode()) + ''.join(record.to_binary() for record in self.records)
+
+	def _encode(self):
+		""" data from self -> data for pack """
+		record_offset = self._fields.index('records')
+		return self[:record_offset] + self[record_offset+1:]
 
 class StructCommand(NewtonCommand, StructType):
 	@classmethod
@@ -384,26 +425,19 @@ class NewtonRide(namedtuple('NewtonRide', zip(*RIDE_FIELDS)[0] + ('data',))):
 		get_errors = lambda mul: [(pure_record.density(), pure_record.elevation_feet, csv_datum, pure_record.elevation_feet - csv_datum, (pure_record.wind_tube_pressure_difference - self.wind_tube_pressure_offset), pure_record.tilt, pure_record.unknown_0, pure_record) for pure_record, csv_datum in compare]
 		return get_errors(0.1)
 
-class NewtonRideHeader(namedtuple('NewtonRideHeader', 'unknown_0 start_time distance_metres')):
+class NewtonRideHeader(StructType, namedtuple('NewtonRideHeader', 'unknown_0 start_time distance_metres')):
 	# \x11\x00
 	# newton time
 	# float encoding of ride length in metres.
 	SHAPE = '<h8sf'
 	SIZE = 14
 
-	def to_binary(self):
-		return struct.pack(self.SHAPE, self.unknown_0, self.start_time.to_binary(), self.distance_metres)
+	def _encode(self):
+		return (self.unknown_0, self.start_time.to_binary(), self.distance_metres)
 
 	@classmethod
-	def parse(cls, data):
-		unknown_0, start_time_raw, distance_metres = struct.unpack(cls.SHAPE, data)
-		return cls(unknown_0, NewtonTime.from_binary(start_time_raw), distance_metres)
-
-	@classmethod
-	def parse_list(cls, data):
-		length, = struct.unpack('<h', data[:2])
-		assert len(data) == length * cls.SIZE + 2, (len(data), length, repr(data))
-		return [cls.parse(data[2 + x * cls.SIZE:2 + (x + 1) * cls.SIZE]) for x in range(length)]
+	def _decode(cls, unknown_0, start_time_raw, distance_metres):
+		return (unknown_0, NewtonTime.from_binary(start_time_raw), distance_metres)
 
 def swap_endian(x):
 	return (x >> 8) + ((x & ((1 << 8) - 1)) << 8)
@@ -512,17 +546,13 @@ class NewtonRideDataPaused(StructType, namedtuple('NewtonRideDataPaused', 'tag n
 
 
 
-class GetFileListResponse(namedtuple('GetFileListResponse', 'headers')):
-	@classmethod
-	def parse(cls, data):
-		return cls(NewtonRideHeader.parse_list(data))
-
-	def to_binary(self):
-		return struct.pack('<h', len(self.headers)) + ''.join(header.to_binary() for header in self.headers)
+class GetFileListResponse(StructListType, namedtuple('GetFileListResponse', 'size records')):
+	SHAPE = '<h'
+	RECORD_TYPE = NewtonRideHeader
 
 	@classmethod
 	def from_simulator(cls, _command, simulator):
-		return cls([ride.get_header() for ride in simulator.rides])
+		return cls(len(simulator.rides), [ride.get_header() for ride in simulator.rides])
 
 @add_command
 class GetFileListCommand(StructCommand, namedtuple('GetFileListCommandBase', '')):
