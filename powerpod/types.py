@@ -94,6 +94,7 @@ PROFILE_FIELDS = [
 	# Switching from 5s sample smoothing to 1s sets 0x0008. Setting back unsets it.
 	# Annoyingly, Isaac only resets to '1 sec' when you 'Get from iBike' -- it'll never reset to '5 sec', so I guess it just checks the flag.
 	# Conclusion: 0x0008 is the "don't smooth for 5s" flag.
+	# A reset profile gets 10251 (=0x280b)
 	('sample_smoothing', 'H', {14554: 1, 14546: 5}),
 	('unknown_1', 'h'),
 	('null_1', 'i'),
@@ -103,6 +104,7 @@ PROFILE_FIELDS = [
 	# If I send 0xffff, I get 0x8009.
 	# If I then set the 'user-edited' flag by messing with stuff, I get 0x8005.
 	# On a pristine profile, I see 0x800e or 0x800d and it's reset to 0x8009 with just a get/set. On an old recording, I saw it reset to 0x8005 on a user-edit.
+	# Resetting the profile gets 0x800c.
 	# Conclusion: Nothing to see here, but user edited-ness.
 	('user_edited', 'H', {0x8009: False, 0x8005: True}),
 	('total_mass_lb', 'h'),
@@ -144,13 +146,14 @@ class NewtonProfile(StructType, namedtuple('NewtonProfile', zip(*PROFILE_FIELDS)
 	def _decode(cls, *args):
 		# Alert when any of these are interesting.
 		assert args[cls._fields.index('unknown_0')] == 0x5c16, args[cls._fields.index('unknown_0')]
-		assert args[cls._fields.index('sample_smoothing')] in (0x38d2, 0x38da, 0x380b), args[cls._fields.index('sample_smoothing')]
+		assert args[cls._fields.index('sample_smoothing')] in (0x38d2, 0x38da, 0x380b, 0x280b), args[cls._fields.index('sample_smoothing')]
 		assert args[cls._fields.index('unknown_1')] == 0x382b, args[cls._fields.index('unknown_1')]
 		assert args[cls._fields.index('null_1')] == 0, args[cls._fields.index('null_1')]
 		assert args[cls._fields.index('null_2')] == 0, args[cls._fields.index('null_2')]
-		assert args[cls._fields.index('user_edited')] in (0x8009, 0x8005, 0x800d, 0x19), args[cls._fields.index('user_edited')]
+		assert args[cls._fields.index('user_edited')] in (0x8009, 0x8005, 0x800d, 0x800c, 0x19), args[cls._fields.index('user_edited')]
 		assert args[cls._fields.index('null_3')] == 0, args[cls._fields.index('null_3')]
 		assert args[cls._fields.index('unknown_2')] in (0, 2), args[cls._fields.index('unknown_2')]
+		assert args[cls._fields.index('unknown_3')] in (0, 0x1988,), args[cls._fields.index('unknown_3')]
 		assert args[cls._fields.index('unknown_4')] in (0xbc00, 0xe766, 0), args[cls._fields.index('unknown_4')]
 		assert args[cls._fields.index('unknown_5')] in (0, 1), args[cls._fields.index('unknown_5')]
 		assert args[cls._fields.index('unknown_6')] in (-38.0, -10.0, 0.0), args[cls._fields.index('unknown_6')]
