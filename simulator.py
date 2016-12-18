@@ -48,14 +48,17 @@ class NewtonSimulator(threading.Thread):
 				data = message[1:]
 				command = powerpod.NewtonCommand.MAP[identifier].parse(data)
 				if (identifier, last_identifier) in [(0x09, 0x0e), (0x0e, 0x09)]:
+					# Newton sends get firmware/get serial every second or so
+					# Log these as debug messages.
 					log = LOGGER.debug
 					last_identifier = identifier
 				else:
 					log = LOGGER.info
 				log("<- %r", command)
 				response = command.get_response(self)
-				log("-> %r", str(response)[:200])
-				self.protocol.write_message(response)
+				log("-> %s", repr(response)[:200])
+				response_bin = None if response is None else response.to_binary()
+				self.protocol.write_message(response_bin)
 
 def arg_parser():
 	parser = argparse.ArgumentParser()

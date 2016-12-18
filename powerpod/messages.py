@@ -9,7 +9,7 @@ class NewtonCommand(object):
 	def get_response(self, simulator):
 		if self.RESPONSE is None:
 			return None
-		return self.RESPONSE.from_simulator(self, simulator).to_binary()
+		return self.RESPONSE.from_simulator(self, simulator)
 
 def add_command(cls):
 	NewtonCommand.MAP[cls.IDENTIFIER] = cls
