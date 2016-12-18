@@ -112,8 +112,8 @@ TIME_FIELDS = [
 	('month_length', 'b'),
 	('year', 'h'),
 ]
-TIME_SHAPE = '<' + ''.join(zip(*TIME_FIELDS)[1])
-class NewtonTime(namedtuple('NewtonTime', zip(*TIME_FIELDS)[0])):
+class NewtonTime(StructType, namedtuple('NewtonTime', zip(*TIME_FIELDS)[0])):
+	SHAPE = '<' + ''.join(zip(*TIME_FIELDS)[1])
 	def as_datetime(self):
 		return datetime.datetime(self.year, self.month, self.day, self.hours, self.mins, self.secs)
 
@@ -121,13 +121,6 @@ class NewtonTime(namedtuple('NewtonTime', zip(*TIME_FIELDS)[0])):
 	def from_datetime(cls, datetime):
 		days_in_month = calendar.monthrange(datetime.year, datetime.month)[1]
 		return cls(datetime.second, datetime.minute, datetime.hour, datetime.day, datetime.month, days_in_month, datetime.year)
-
-	@classmethod
-	def from_binary(cls, data):
-		return cls(*struct.unpack(TIME_SHAPE, data))
-
-	def to_binary(self):
-		return struct.pack(TIME_SHAPE, *self)
 
 
 
