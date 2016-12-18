@@ -509,6 +509,8 @@ class NewtonRideDataPaused(namedtuple('NewtonRideDataPaused', 'tag newton_time u
 	def to_binary(self):
 		return struct.pack('<6s8sb', self.tag, self.newton_time.to_binary(), self.unknown_3)
 
+
+
 class GetFileListResponse(namedtuple('GetFileListResponse', 'headers')):
 	@classmethod
 	def parse(cls, data):
@@ -527,13 +529,18 @@ class GetFileListCommand(StructCommand, namedtuple('GetFileListCommandBase', '')
 	SHAPE = ''
 	RESPONSE = GetFileListResponse
 
+
+
+class UnknownCommandResponse(StructType, namedtuple('UnknownCommandResponse', 'unknown_0 unknown_1')):
+	SHAPE = '<hh'
+
+	@classmethod
+	def from_simulator(cls, _command, _simulator):
+		return cls(2, 0)
+
 @add_command
 class UnknownCommand(StructCommand, namedtuple('UnknownCommandBase', '')):
 	""" This is sent before GetFileListCommand... """
 	IDENTIFIER = 0x22
 	SHAPE = ''
-
-	@staticmethod
-	def get_response(_simulator):
-		return '\x00\x02\x00\x00'
-
+	RESPONSE = UnknownCommandResponse
