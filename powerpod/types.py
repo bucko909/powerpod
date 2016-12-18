@@ -109,8 +109,8 @@ PROFILE_FIELDS = [
 	('wheel_circumference_mm', 'h'),
 	('null_3', 'h'),
 	('unknown_3', 'h'),
-	('null_4', 'h'),
-	('unknown_4', 'h'),
+	('unknown_2', 'h'),
+	('unknown_4', 'H'),
 	('unknown_5', 'h'),
 	('aero', 'f'),
 	('fric', 'f'),
@@ -144,20 +144,20 @@ class NewtonProfile(StructType, namedtuple('NewtonProfile', zip(*PROFILE_FIELDS)
 	def _decode(cls, *args):
 		# Alert when any of these are interesting.
 		assert args[cls._fields.index('unknown_0')] == 0x5c16, args[cls._fields.index('unknown_0')]
-		assert args[cls._fields.index('sample_smoothing')] in (0x38d2, 0x38da), args[cls._fields.index('unknown_1')]
+		assert args[cls._fields.index('sample_smoothing')] in (0x38d2, 0x38da, 0x380b), args[cls._fields.index('sample_smoothing')]
 		assert args[cls._fields.index('unknown_1')] == 0x382b, args[cls._fields.index('unknown_1')]
 		assert args[cls._fields.index('null_1')] == 0, args[cls._fields.index('null_1')]
 		assert args[cls._fields.index('null_2')] == 0, args[cls._fields.index('null_2')]
-		assert args[cls._fields.index('user_edited')] in (0x8009, 0x8005, 0x800d), args[cls._fields.index('user_edited')]
+		assert args[cls._fields.index('user_edited')] in (0x8009, 0x8005, 0x800d, 0x19), args[cls._fields.index('user_edited')]
 		assert args[cls._fields.index('null_3')] == 0, args[cls._fields.index('null_3')]
-		assert args[cls._fields.index('null_4')] == 0, args[cls._fields.index('null_4')]
-		assert args[cls._fields.index('unknown_4')] == -6298, args[cls._fields.index('unknown_4')]
-		assert args[cls._fields.index('unknown_5')] == 1, args[cls._fields.index('unknown_5')]
-		assert args[cls._fields.index('unknown_6')] == -10.0, args[cls._fields.index('unknown_6')]
-		assert args[cls._fields.index('unknown_7')] == 1.0, args[cls._fields.index('unknown_7')]
+		assert args[cls._fields.index('unknown_2')] in (0, 2), args[cls._fields.index('unknown_2')]
+		assert args[cls._fields.index('unknown_4')] in (0xbc00, 0xe766, 0), args[cls._fields.index('unknown_4')]
+		assert args[cls._fields.index('unknown_5')] in (0, 1), args[cls._fields.index('unknown_5')]
+		assert args[cls._fields.index('unknown_6')] in (-38.0, -10.0, 0.0), args[cls._fields.index('unknown_6')]
+		assert args[cls._fields.index('unknown_7')] in (1.0, 0.0), args[cls._fields.index('unknown_7')]
 		assert args[cls._fields.index('unknown_8')] == 1670644000, args[cls._fields.index('unknown_8')]
-		assert args[cls._fields.index('unknown_9')] == 1850, args[cls._fields.index('unknown_9')]
-		assert args[cls._fields.index('unknown_a')] in (0x0301, 0x0b01), args[cls._fields.index('unknown_a')]
+		assert args[cls._fields.index('unknown_9')] in (1850, 1803), args[cls._fields.index('unknown_9')]
+		assert args[cls._fields.index('unknown_a')] in (0x0301, 0x0b01, 0x351), args[cls._fields.index('unknown_a')]
 		assert args[cls._fields.index('unknown_c')] == 50, args[cls._fields.index('unknown_c')]
 		return args
 
