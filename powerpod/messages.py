@@ -500,14 +500,15 @@ class NewtonRideData(object):
 	def __repr__(self):
 		return '{}({})'.format(self.__class__.__name__, ', '.join(repr(getattr(self, name)) for name in self.__slots__))
 
-class NewtonRideDataPaused(namedtuple('NewtonRideDataPaused', 'tag newton_time unknown_3')):
-	@classmethod
-	def from_binary(cls, data):
-		tag, time_bin, unknown_3 = struct.unpack('<6s8sb', data)
-		return cls(tag, NewtonTime.from_binary(time_bin), unknown_3)
+class NewtonRideDataPaused(StructType, namedtuple('NewtonRideDataPaused', 'tag newton_time unknown_3')):
+	SHAPE = '<6s8sb'
 
-	def to_binary(self):
-		return struct.pack('<6s8sb', self.tag, self.newton_time.to_binary(), self.unknown_3)
+	@staticmethod
+	def _decode(cls, tag, newton_time_raw, unknown_3):
+		return (tag, NewtonTime.from_binary(newton_time_raw), unknown_3)
+
+	def _encode(self):
+		return (self.tag, self.newton_time.to_binary(), self.unknown_3)
 
 
 
