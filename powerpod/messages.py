@@ -385,7 +385,7 @@ class SetProfileNumberCommand(StructCommand, namedtuple('SetProfileNumberCommand
 
 SET_PROFILE2_FIELDS = [
 		('power_smoothing_seconds', 'H'),
-		('unknown_c', 'h'),
+		('unknown_a', 'h'), # Verified equal to Profile.
 ]
 class SetProfileData2Response(object):
 	@staticmethod
