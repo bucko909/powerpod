@@ -7,6 +7,8 @@ class NewtonCommand(object):
 	MAP = {}
 
 	def get_response(self, simulator):
+		if self.RESPONSE is None:
+			return None
 		return self.RESPONSE.from_simulator(self, simulator).to_binary()
 
 def add_command(cls):
@@ -30,20 +32,18 @@ class StructCommand(NewtonCommand, StructType):
 
 
 @add_command
-class SetTimeCommand(NewtonCommand, namedtuple('SetTimeCommand', 'unknown newton_time')):
+class SetTimeCommand(StructCommand, namedtuple('SetTimeCommand', 'unknown newton_time')):
 	# Is the unknown1 optional? I've seen this sent without it...
 	IDENTIFIER = 0x04
 	SHAPE = '<b8s'
+	RESPONSE = None
 
 	@classmethod
-	def parse(cls, data):
-		unknown, time_bin = struct.unpack(cls.SHAPE, data)
-		return cls(unknown, NewtonTime.from_binary(time_bin))
+	def _decode(cls, unknown, newton_time):
+		return (unknown, NewtonTime.from_binary(newton_time))
 
-	@staticmethod
-	def get_response(_simulator):
-		# This command just sends a second ack packet when it's done?
-		return None
+	def _encode(self):
+		return (self.unknown, self.newton_time.to_binary())
 
 
 
