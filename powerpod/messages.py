@@ -446,44 +446,11 @@ RIDE_DATA_FIELDS = [
 assert sum(x[1] for x in RIDE_DATA_FIELDS) == 15 * 8
 DECODE_FIFTEEN_BYTES = '{:08b}' * 15
 ENCODE_FIFTEEN_BYTES = ''.join('{:0%sb}' % (fielddef[1],) for fielddef in RIDE_DATA_FIELDS)
-STROBE = 0
 class NewtonRideData(object):
 	__slots__ = zip(*RIDE_DATA_FIELDS)[0]
 	def __init__(self, *args):
-		global STROBE
-		STROBE += 1
 		for name, value in zip(self.__slots__, args):
 			setattr(self, name, value)
-		return
-		# speed=20.0, u_1=0,1,2,3 ws=16.0 => ws=0,0,15,36.9
-		# speed=10.0, u_1=0,1,2,3 ws=16.0 => ws=0,0,15,36.9
-		# speed=20.0, u_1=0,1,2,3 ws=10.0 => ws=0,0,0,33.0
-		# speed=20.0, u_1=0,1,2,3 ws=20.0 => ws=0,0,20.1,39.2
-		# speed=20.0, u_1=0,1,2,3 ws=21.0 => ws=0,0,21.1,39.7
-		# speed=20.0, u_1=0,1,2,3 ws=22.0 => ws=0,0,22.1,40.2
-		# speed=20.0, u_1=0,1,2,3 ws=23.0 => ws=0,0,23.1,40.8
-		# speed=20.0, u_1=0,1,2,3 ws=24.0 => ws=0,0,24.0,41.3
-		# speed=20.0, u_1=0,1,2,3 ws=25.0 => ws=0,0,24.9,41.9
-		#self.unknown_1 = (STROBE // 100) % 4
-		self.elevation_feet = 0 # (STROBE // 200) * 100
-		self.cadence = 0 #100 + STROBE % 100
-		self.heart_rate = 100 + STROBE // 100
-		self.temperature_farenheit = 73 # -100 + (STROBE) % 200
-		self.unknown_0 = (STROBE // 10) % 512
-		self.tilt_times_10 = -1.0 #+ (STROBE // 50) % 10
-		self.speed_mph = 20.0 - abs(STROBE % 100 - 50) * ((STROBE // 200) % 4) * 0.1
-		self.wind_tube_pressure_difference = 700 # + (STROBE // 400) * 10 # + (STROBE // 400)
-		self.power_watts = 100 #+ (STROBE // 110) % 100
-		self.unknown_2 = 0 #+ (STROBE // 130) % 100
-		self.acceleration_maybe = 50 if (STROBE // 100) % 2 == 0 else -50
-		self.stopped_flag_maybe = 1 if (STROBE % 71) == 0 else 0
-		self.unknown_3 = 4 # (STROBE // 10) % 255
-		# elevation_feet = 0, temperature_farenheit = 73, unknown_0 = 0, speed_mph = 20, power_watts = 100, unknown_2 = 0, acceleration_maybe = 0, unknown_3 = 0
-		# 0 -> 42.2
-		# TEMPERATURE has an effect. Increasing temperature increases wind speed!
-		# unknown_0, speed_mph, power_watts, unknown_2, acceleration_maybe seem to do nothing.
-		# messing with the last 9 bits seems to allow me to turn on 'drafting'
-
 
 	@classmethod
 	def from_binary(cls, data):
