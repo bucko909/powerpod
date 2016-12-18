@@ -143,7 +143,7 @@ class GetProfileDataResponse(StructType, namedtuple('GetProfileDataResponse', 's
 	@classmethod
 	def from_simulator(cls, _command, simulator):
 		assert len(simulator.profiles) == cls.LENGTH
-		return cls(simulator.profiles)
+		return cls(len(simulator.profiles), simulator.profiles)
 
 	@classmethod
 	def _decode(cls, length, data):
@@ -327,13 +327,54 @@ class SetIntervalsCommand(StructCommand, namedtuple('SetIntervalsCommand', 'size
 
 
 
+SET_PROFILE_FIELDS = [
+		('total_mass_lb', 'h'),
+		('user_edited', 'H'),
+		('wheel_circumference_mm', 'h'),
+		('sample_smoothing', 'H'),
+		('aero', 'f'),
+		('fric', 'f'),
+		('unknown_6', 'f'), # Verified equal to Profile. Values include -38.0
+		('unknown_7', 'f'), # Verified equal to Profile. Values include 1.0
+		('wind_scaling_sqrt', 'f'),
+		('speed_id', 'H'),
+		('cadence_id', 'H'),
+		('hr_id', 'H'),
+		('power_id', 'H'),
+		# Distressingly, the 'type' fields are 'B' in the actual profile.
+		('speed_type', 'H'),
+		('cadence_type', 'H'),
+		('hr_type', 'H'),
+		('power_type', 'H'),
+		('tilt_mult_10', 'h'),
+		('cal_mass_lb', 'h'),
+		('rider_mass_lb', 'h'),
+		('unknown_9', 'h'), # Verified equal to Profile. Values include 1850
+		('ftp_per_kilo_ish', 'h'),
+		('ftp_over_095', 'h'),
+		('unknown_a', 'h'),
+]
+class SetProfileDataResponse(object):
+	@staticmethod
+	def from_simulator(command, simulator):
+		old = simulator.profiles[simulator.current_profile]
+		new = old._replace(**{key: getattr(command, key) for key in command._fields if hasattr(old, key)})
+		simulator.profiles[simulator.current_profile] = new
+		return None
+
 @add_command
-class SetProfileDataCommand(StructCommand, namedtuple('SetProfileDataCommand', 'data')):
+class SetProfileDataCommand(StructCommand, namedtuple('SetProfileDataCommand', zip(*SET_PROFILE_FIELDS)[0])):
 	IDENTIFIER = 0x1a
-	SHAPE = '58s' # TODO
-	RESPONSE = None
+	SHAPE = '<' + ''.join(zip(*SET_PROFILE_FIELDS)[1])
+	RESPONSE = SetProfileDataResponse
 
 
+
+class SetProfileNumberResponse(object):
+	@staticmethod
+	def from_simulator(command, simulator):
+		simulator.current_profile = command.profile_number
+		return None
 
 @add_command
 class SetProfileNumberCommand(StructCommand, namedtuple('SetProfileNumberCommand', 'profile_number')):
@@ -342,12 +383,23 @@ class SetProfileNumberCommand(StructCommand, namedtuple('SetProfileNumberCommand
 	RESPONSE = None
 
 
+SET_PROFILE2_FIELDS = [
+		('power_smoothing_seconds', 'H'),
+		('unknown_c', 'h'),
+]
+class SetProfileData2Response(object):
+	@staticmethod
+	def from_simulator(command, simulator):
+		old = simulator.profiles[simulator.current_profile]
+		new = old._replace(**{key: getattr(command, key) for key in command._fields if hasattr(old, key)})
+		simulator.profiles[simulator.current_profile] = new
+		return None
 
 @add_command
-class PostSetProfileDataCommand(StructCommand, namedtuple('PostSetProfileDataCommand', 'unknown_0 unknown_1')):
+class SetProfileData2Command(StructCommand, namedtuple('PostSetProfileDataCommand', 'power_smoothing_seconds unknown_c')):
 	IDENTIFIER = 0x1e
-	SHAPE = '<hh' # TODO
-	RESPONSE = None
+	SHAPE = '<hh'
+	RESPONSE = SetProfileData2Response
 
 
 

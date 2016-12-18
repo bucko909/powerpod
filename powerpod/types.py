@@ -84,12 +84,27 @@ class NewtonTime(StructType, namedtuple('NewtonTime', zip(*TIME_FIELDS)[0])):
 
 PROFILE_FIELDS = [
 	('unknown_0', 'h'),
-	('sample_smooth', 'h', {14554: 1, 14546: 5}),
+	# Facts about sample_smoothing flags:
+	# If I send (in GetProfileData) 0x0000, I get (in SetProfileData) 0x0800.
+	# If I send                     0xffff, I get                     0xffdf.
+	# If I send                     0x0539, I get                     0x0d19.
+	# If I send                     0x2ef0, I get                     0x2ed0.
+	# Both of these are preserved.
+	# Conclusion: 0x0800 must be set, 0x0020 must be unset.
+	# Switching from 5s sample smoothing to 1s sets 0x0008. Setting back unsets it.
+	# Annoyingly, Isaac only resets to '1 sec' when you 'Get from iBike' -- it'll never reset to '5 sec', so I guess it just checks the flag.
+	# Conclusion: 0x0008 is the "don't smooth for 5s" flag.
+	('sample_smoothing', 'H', {14554: 1, 14546: 5}),
 	('unknown_1', 'h'),
 	('null_1', 'i'),
 	('null_2', 'h'),
-	('user_edited', 'b', {14: False, 5: True}),
-	('unknown_2', 'b'), # 0x80
+	# If I send 0x0000, I get 0x8009.
+	# If I send 0x8009, I get 0x8009.
+	# If I send 0xffff, I get 0x8009.
+	# If I then set the 'user-edited' flag by messing with stuff, I get 0x8005.
+	# On a pristine profile, I see 0x800e or 0x800d and it's reset to 0x8009 with just a get/set. On an old recording, I saw it reset to 0x8005 on a user-edit.
+	# Conclusion: Nothing to see here, but user edited-ness.
+	('user_edited', 'H', {0x8009: False, 0x8005: True}),
 	('total_mass_lb', 'h'),
 	('wheel_circumference_mm', 'h'),
 	('null_3', 'h'),
@@ -109,7 +124,7 @@ PROFILE_FIELDS = [
 	('unknown_9', 'h'),
 	('ftp_per_kilo_ish', 'h'),
 	('ftp_over_095', 'h'),
-	('unknown_a', 'h'),
+	('unknown_a', 'h'), # 0x0301 -> 0x0b01 (+0x0800) when sample rate changed to 1s. Never restored, though!
 	('speed_id', 'H'),
 	('cadence_id', 'H'),
 	('hr_id', 'H'),
@@ -119,12 +134,32 @@ PROFILE_FIELDS = [
 	('hr_type', 'B'),
 	('power_type', 'B'),
 	('power_smoothing_seconds', 'H'),
-	('unknown_c', 'h'),
+	('unknown_c', 'h'), # 0x0032
 ]
 class NewtonProfile(StructType, namedtuple('NewtonProfile', zip(*PROFILE_FIELDS)[0])):
 	SHAPE = '<' + ''.join(zip(*PROFILE_FIELDS)[1])
 	SIZE = struct.Struct(SHAPE).size
 
+	@classmethod
+	def _decode(cls, *args):
+		# Alert when any of these are interesting.
+		assert args[cls._fields.index('unknown_0')] == 0x5c16, args[cls._fields.index('unknown_0')]
+		assert args[cls._fields.index('sample_smoothing')] in (0x38d2, 0x38da), args[cls._fields.index('unknown_1')]
+		assert args[cls._fields.index('unknown_1')] == 0x382b, args[cls._fields.index('unknown_1')]
+		assert args[cls._fields.index('null_1')] == 0, args[cls._fields.index('null_1')]
+		assert args[cls._fields.index('null_2')] == 0, args[cls._fields.index('null_2')]
+		assert args[cls._fields.index('user_edited')] in (0x8009, 0x8005, 0x800d), args[cls._fields.index('user_edited')]
+		assert args[cls._fields.index('null_3')] == 0, args[cls._fields.index('null_3')]
+		assert args[cls._fields.index('null_4')] == 0, args[cls._fields.index('null_4')]
+		assert args[cls._fields.index('unknown_4')] == -6298, args[cls._fields.index('unknown_4')]
+		assert args[cls._fields.index('unknown_5')] == 1, args[cls._fields.index('unknown_5')]
+		assert args[cls._fields.index('unknown_6')] == -10.0, args[cls._fields.index('unknown_6')]
+		assert args[cls._fields.index('unknown_7')] == 1.0, args[cls._fields.index('unknown_7')]
+		assert args[cls._fields.index('unknown_8')] == 1670644000, args[cls._fields.index('unknown_8')]
+		assert args[cls._fields.index('unknown_9')] == 1850, args[cls._fields.index('unknown_9')]
+		assert args[cls._fields.index('unknown_a')] in (0x0301, 0x0b01), args[cls._fields.index('unknown_a')]
+		assert args[cls._fields.index('unknown_c')] == 50, args[cls._fields.index('unknown_c')]
+		return args
 
 
 def swap_endian(x):
@@ -262,7 +297,7 @@ RIDE_FIELDS = [
 	('wind_scaling_sqrt', 'f', IDENTITY, IDENTITY, 1.0), # byte 56
 	('riding_tilt_times_10', 'h', IDENTITY, IDENTITY, 0.0), # byte 60
 	('cal_mass_lb', 'h', IDENTITY, IDENTITY, 235), # byte 62
-	('unknown_5', 'h', IDENTITY, IDENTITY, 88), # byte 64, 0x5800 and 0x6000 and 0x5c00 observed; multiplying by 10 doesn't affect: wind speed, pressure, temperature, 
+	('unknown_5', 'h', IDENTITY, IDENTITY, 88), # byte 64, 0x5800 and 0x6000 and 0x5c00 observed; multiplying by 10 doesn't affect: wind speed, pressure, temperature.
 	('wind_tube_pressure_offset', 'h', lambda x: x - 1024, lambda x: x + 1024, 620), # byte 66, this is a 10-bit signed negative number cast to unsigned and stored in a 16 bit int...
 	('unknown_7', 'i', IDENTITY, IDENTITY, 0), # byte 68, 0x00000000 observed
 	('reference_temperature_kelvin', 'h', IDENTITY, IDENTITY, 288), # byte 72, normally 288 (14.85C)

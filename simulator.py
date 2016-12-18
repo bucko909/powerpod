@@ -19,6 +19,7 @@ class NewtonSimulator(threading.Thread):
 		self.serial_connection = serial_connection
 		self.protocol = None
 		self.profiles = None
+		self.current_profile = 0
 		self.reload = False
 		self.init()
 
