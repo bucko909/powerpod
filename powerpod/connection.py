@@ -180,6 +180,7 @@ class NewtonSerialProtocol(object):
 				LOGGER.debug("read_message %r", message)
 				return message
 			self.write_packet(AckPacket())
+			LOGGER.debug("read_partial")
 			conversation = []
 
 	def write_message(self, message):
@@ -192,7 +193,7 @@ class NewtonSerialProtocol(object):
 		if message is None:
 			self.write_packet(CommandAckPacket())
 			return
-		message_parts = [ message[127*i:127*(i+1)] for i in range(len(message)/127+1) ]
+		message_parts = [ message[63*i:63*(i+1)] for i in range(len(message)/63+1) ]
 		for message_part in message_parts:
 			if not self._write_message_part(message_part):
 				return
@@ -226,3 +227,12 @@ class NewtonSerialProtocol(object):
 			return False
 		LOGGER.debug("wrote_message %r", message_part)
 		return True
+
+	def do_command(self, command):
+		self.write_message(command.to_binary())
+		if command.RESPONSE is None:
+			return None
+		response_raw = self.read_message()
+		response = command.RESPONSE.from_binary(response_raw)
+		assert response.to_binary() == response_raw
+		return response

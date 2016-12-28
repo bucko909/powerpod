@@ -19,21 +19,14 @@ def main():
 	kwargs = {}
 	serial_connection = powerpod.NewtonSerialConnection(port=args.port)
 	protocol = powerpod.NewtonSerialProtocol(serial_connection, device_side=False)
-	data = powerpod.GetFileListCommand().to_binary()
-	print repr(data)
-	protocol.write_message(data)
-	response = powerpod.GetFileListCommand.RESPONSE.parse(protocol.read_message())
-	print response
-	headers = response.headers
-	for i, header in enumerate(headers):
+	response = protocol.do_command(powerpod.GetFileListCommand())
+	LOGGER.debug(repr(response))
+	for i, header in enumerate(response.records):
 		filename = "powerpod.%s-%0.1fkm.raw" % (header.start_time.as_datetime().strftime("%Y-%m-%dT%H-%M-%S"), header.distance_metres / 1000)
-		print i, header, filename
+		LOGGER.info("index=%s header=%s filename=%s", i, header, filename)
 		time.sleep(1)
-		protocol.write_message(powerpod.GetFileCommand(i).to_binary())
-		response_raw = protocol.read_message()
-		response = powerpod.GetFileCommand.RESPONSE.parse(response_raw).ride_data
-		assert response.to_binary() == response_raw, map(repr, [response_raw[:100], response.to_binary()[:100]])
-		open(os.path.join('rides', filename), 'w').write(response.to_binary())
+		response = protocol.do_command(powerpod.GetFileCommand(i))
+		open(os.path.join('rides', filename), 'w').write(response.ride_data.to_binary())
 
 if __name__ == '__main__':
 	main()
