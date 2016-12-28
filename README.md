@@ -68,3 +68,58 @@ There's an "Interrupt" packet, and whenever that happens on the wire, protocol d
 Many commands and other wire types are represented by classes in `powerpod.messages`. These were reverse engineered by dumping USB chatter while values in Isaac were altered. Ride data was correlated against the CSV files output by Isaac.
 
 Isaac detects device presence by looping "get serial number" and "get firmware version". It sets the device clock on connect, and every hour.
+
+## TODO / Roadmap
+
+* Make `get_rides` a generic tool. Add:
+  * Make a list rides command.
+  * Get a /specific/ ride.
+  * Force (or not) overwrite existing on get all.
+  * Set output directory.
+  * Erase all.
+  * Get/set odometer option.
+  * Get firmware version.
+    * Check if it's latest?
+  * Get serial number.
+  * Get space usage.
+  * Set time.
+  * Switch profile.
+  * Get/set profile stuff:
+    * Power smoothing (get from profile).
+    * Sample smoothing (get from profile).
+    * ANT+ ids and types (what are the types?).
+    * Aero/Rolling properties.
+    * Wheel circumference.
+    * Total/rider mass.
+    * Tilt cal.
+    * Cal mass.
+    * FTP.
+    * Units.
+  * Make options to dump/restore profiles.
+    * To raw.
+    * To JSON (dump known fields).
+  * Get(?)/set trainer weights. Find a standard list of them; find out what they do?
+  * Get/set intervals (for Newton).
+* New stuff:
+  * Figure out how to put the device into various cal modes.
+  * Figure out screens data.
+    * Get/set screens (for Newton).
+  * Remaining fields in ride header.
+    * Add asserts for "seen" values to make spotting stuff easier.
+    * Figure out why Isaac alters altitude numbers a bit.
+      * Is it because of tilt cal?
+      * Correction?
+        * What correction?
+    * Average temperature -- how does this affect pressure? Does this mean anything else?
+  * Remaining ride fields:
+    * `unknown_0` may be tilt cal correction (or just corrected tilt cal).
+    * `acceleration_maybe` -- maybe try strobing it and try a mass change in Isaac?
+    * Everything else.
+  * WTF is `ftp_per_kilo_ish` actually? Get some good data.
+* Tool to convert `.raw` -> `.gpx`.
+  * Something to print out a decoded header, too (wrong shape for GPX!).
+  * Alter correlate tool to correlate two `.gpx` files (PowerTap time invariably disagrees with GPS by at least a few seconds).
+  * Split out GPX correlate tool to a new repo?
+* Get Strava extra thing to fetch from a URL in the ride.
+  * Auto-upload to eg. Amazon S3.
+  * Split out into a distinct repo?
