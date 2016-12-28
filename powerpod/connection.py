@@ -230,7 +230,9 @@ class NewtonSerialProtocol(object):
 
 	def do_command(self, command):
 		self.write_message(command.to_binary())
-		if command.RESPONSE is None:
+		if not hasattr(command.RESPONSE, 'from_binary'):
+			response = self.read_packet()
+			assert isinstance(response, CommandAckPacket), response
 			return None
 		response_raw = self.read_message()
 		response = command.RESPONSE.from_binary(response_raw)

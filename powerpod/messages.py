@@ -233,11 +233,17 @@ class UploadFirmwareCommand(StructCommand, namedtuple('UploadFirmwareCommand', '
 
 
 
+class EraseAllResponse(object):
+	@staticmethod
+	def from_simulator(command, simulator):
+		simulator.rides[:] = []
+		return None
+
 @add_command
 class EraseAllCommand(StructCommand, namedtuple('EraseAllCommand', '')):
 	IDENTIFIER = 0x07
 	SHAPE = ''
-	RESPONSE = None
+	RESPONSE = EraseAllResponse
 
 
 
