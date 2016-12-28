@@ -326,7 +326,7 @@ RIDE_FIELDS = [
 	('initial_elevation_feet', 'f', IDENTITY, IDENTITY, 0), # byte 22, always integer?!
 	('elevation_gain_feet', 'f', IDENTITY, IDENTITY, 0), # byte 26, always integer?!
 	('wheel_circumference_mm', 'f', IDENTITY, IDENTITY, 2136.0), # byte 30, always integer?!
-	('unknown_1', 'h', IDENTITY, IDENTITY, 15), # byte 34, 0x0f00 and 0x0e00 and 0x0e00 observed; multiplying by 10 does nothing observable.
+	('unknown_1', 'h', IDENTITY, IDENTITY, 15), # byte 34, 0x0f00 and 0x0e00 and 0x0e00 observed; multiplying by 10 does nothing observable. TODO is this ftp per kilo ish?
 	('unknown_2', 'h', IDENTITY, IDENTITY, 1), # byte 36, =1?
 	('start_time', '8s', NewtonTime.from_binary, NewtonTime.to_binary, NewtonTime(0, 0, 0, 1, 1, 31, 2000)), # byte 38
 	('pressure_Pa', 'i', IDENTITY, IDENTITY, 101325), # byte 46, appears to be pressure in Pa (observed range 100121-103175) # (setting, reported) = [(113175, 1113), (103175, 1014), (93175, 915), (203175, 1996), (1e9, 9825490), (2e9, 19650979), (-2e9, -19650979)]. Reported value in Isaac (hPa) is this divided by ~101.7761 or multiplied by 0.00982549. This isn't affected by truncating the ride at all. It /is/ affected by unknown_3; if I make unknown_3 -73 from 73, I get (-2e9, -19521083).
