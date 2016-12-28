@@ -2,6 +2,7 @@ from collections import namedtuple
 import datetime
 import calendar
 import struct
+import sys
 
 class StructType(object):
 	"""
@@ -9,7 +10,11 @@ class StructType(object):
 	"""
 	@classmethod
 	def from_binary(cls, data):
-		return cls(*cls._decode(*struct.unpack(cls.SHAPE, data)))
+		try:
+			return cls(*cls._decode(*struct.unpack(cls.SHAPE, data)))
+		except:
+			sys.stderr.write("Error parsing {!r}\n".format(data))
+			raise
 
 	@staticmethod
 	def _decode(*args):
