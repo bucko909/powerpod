@@ -41,6 +41,15 @@ class GetAllRidesAction(Action):
 			args.actions.append(make_action("get_ride {} --filename={}".format(i, WHITESPACE_QUOTE(filepath))))
 
 @add_action
+class ListRidesAction(Action):
+	PARSER = argparse.ArgumentParser('list_rides', description='Print information about all rides on the device to stdout')
+	def run(self, protocol, args):
+		response = protocol.do_command(powerpod.GetFileListCommand())
+		LOGGER.debug(repr(response))
+		for i, header in enumerate(response.records):
+			sys.stdout.write("{} {}\n".format(i, header.to_filename()))
+
+@add_action
 class GetRideAction(Action):
 	PARSER = argparse.ArgumentParser('get_ride')
 	PARSER.add_argument('index', type=int)
