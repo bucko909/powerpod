@@ -1,5 +1,4 @@
 import threading
-import ipdb
 import logging
 import argparse
 
@@ -71,9 +70,7 @@ def main():
 	if args.port is not None:
 		kwargs['serial_connection'] = powerpod.NewtonSerialConnection(port=args.port)
 	sim = NewtonSimulator(**kwargs)
-	sim.setDaemon(True)
-	sim.start()
-	ipdb.set_trace()
+	sim.run()
 
 if __name__ == '__main__':
 	main()
