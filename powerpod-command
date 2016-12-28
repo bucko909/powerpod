@@ -28,6 +28,8 @@ class Action(object):
 @add_action
 class GetAllRidesAction(Action):
 	PARSER = argparse.ArgumentParser('get_all_rides', description='Fetch all rides into ride_directory')
+	PARSER.add_argument('--no-clobber', dest='existing', action='store_const', const='no_clobber')
+	PARSER.add_argument('--force', dest='existing', action='store_const', const='force')
 	PARSER.add_argument(
 			'--directory',
 			dest='directory',
@@ -36,9 +38,14 @@ class GetAllRidesAction(Action):
 	def run(self, protocol, args):
 		response = protocol.do_command(powerpod.GetFileListCommand())
 		LOGGER.debug(repr(response))
+		extra = []
+		if self.extra.existing == 'force':
+			extra.append('--force')
+		elif self.extra.existing == 'no_clobber':
+			extra.append('--no-clobber')
 		for i, header in enumerate(response.records):
 			filepath = os.path.join(self.extra.directory, header.to_filename())
-			args.actions.append(make_action("get_ride {} --filename={}".format(i, WHITESPACE_QUOTE(filepath))))
+			args.actions.append(make_action("get_ride {} {} {}".format(i, WHITESPACE_QUOTE(filepath), ' '.join(extra))))
 
 @add_action
 class ListRidesAction(Action):
@@ -53,14 +60,23 @@ class ListRidesAction(Action):
 class GetRideAction(Action):
 	PARSER = argparse.ArgumentParser('get_ride')
 	PARSER.add_argument('index', type=int)
-	PARSER.add_argument('--filename')
+	PARSER.add_argument('filename')
+	PARSER.add_argument('--no-clobber', dest='existing', action='store_const', const='no_clobber')
+	PARSER.add_argument('--force', dest='existing', action='store_const', const='force')
 	def run(self, protocol, args):
 		time.sleep(1)
 		response = protocol.do_command(powerpod.GetFileCommand(self.extra.index))
 		filename = self.extra.filename
-		if filename is None:
+		if filename is sys.stdout:
 			out = sys.stdout
 		else:
+			if os.path.exists(filename):
+				if self.extra.existing == 'force':
+					pass
+				else:
+					if self.extra.existing is None:
+						LOGGER.warning('Will not overwrite {!r}; use --force or --no-clobber'.format(filename))
+					return
 			out = open(filename, 'w')
 		LOGGER.info("index=%s header=%s filename=%s", self.extra.index, response.ride_data.get_header(), filename)
 		out.write(response.ride_data.to_binary())

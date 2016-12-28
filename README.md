@@ -72,8 +72,6 @@ Isaac detects device presence by looping "get serial number" and "get firmware v
 ## TODO / Roadmap
 
 * Add to powerpod-command:
-  * Force (or not) overwrite existing on get all.
-  * Set output directory.
   * Erase all.
   * Get/set odometer option.
   * Get firmware version.
