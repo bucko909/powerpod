@@ -1,3 +1,4 @@
+#!/usr/bin/python
 import argparse
 import functools
 import logging
@@ -61,6 +62,17 @@ def make_action(string):
 	args = action_class.PARSER.parse_args(parts[1:])
 	return action_class(args)
 
+class HelpActions(argparse.Action):
+	def __init__(self, *args, **kwargs):
+		kwargs['nargs'] = 0
+		super(HelpActions, self).__init__(*args, **kwargs)
+	@staticmethod
+	def __call__(parser, namespace, values, option_string):
+		for action_class in ACTIONS.values():
+			action_class.PARSER.print_help()
+			sys.stdout.write('\n\n')
+		sys.exit(0)
+
 def arg_parser():
 	parser = argparse.ArgumentParser()
 	parser.add_argument('--port', default='/dev/ttyUSB0')
@@ -87,16 +99,16 @@ def arg_parser():
 			help='For --get-all-profiles',
 	)
 	parser.add_argument(
-			'--help-actions',
-			#action=ActionsHelp,
-	)
-	parser.add_argument(
 			'actions',
 			nargs='+',
 			type=make_action,
 			help="""
 				Actions to perform. See --help-actions for a list.
 			""",
+	)
+	parser.add_argument(
+			'--help-actions',
+			action=HelpActions,
 	)
 	return parser
 

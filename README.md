@@ -28,7 +28,7 @@ I don't intend to ever deal with firmware updates. If you want to update your fi
 Get all of the rides from the device into the `rides` directory, obliterating existing data without prompt.
 
 ```
-mkdir rides && python get_rides.py --port=/dev/ttyUSB0
+mkdir rides && ./powerpod-command get_all_rides
 ```
 
 TODO:
@@ -71,9 +71,8 @@ Isaac detects device presence by looping "get serial number" and "get firmware v
 
 ## TODO / Roadmap
 
-* Make `get_rides` a generic tool. Add:
+* Add to powerpod-command:
   * Make a list rides command.
-  * Get a /specific/ ride.
   * Force (or not) overwrite existing on get all.
   * Set output directory.
   * Erase all.
