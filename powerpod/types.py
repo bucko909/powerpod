@@ -443,3 +443,6 @@ class NewtonRideHeader(StructType, namedtuple('NewtonRideHeader', 'unknown_0 sta
 	@classmethod
 	def _decode(cls, unknown_0, start_time_raw, distance_metres):
 		return (unknown_0, NewtonTime.from_binary(start_time_raw), distance_metres)
+
+	def to_filename(self):
+		return "powerpod.%s-%0.1fkm.raw" % (self.start_time.as_datetime().strftime("%Y-%m-%dT%H-%M-%S"), self.distance_metres / 1000)

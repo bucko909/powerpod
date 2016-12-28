@@ -27,13 +27,17 @@ class Action(object):
 
 @add_action
 class GetAllRidesAction(Action):
-	PARSER = argparse.ArgumentParser('get_all_rides')
+	PARSER = argparse.ArgumentParser('get_all_rides', description='Fetch all rides into ride_directory')
+	PARSER.add_argument(
+			'--directory',
+			dest='directory',
+			default='./rides',
+	)
 	def run(self, protocol, args):
 		response = protocol.do_command(powerpod.GetFileListCommand())
 		LOGGER.debug(repr(response))
 		for i, header in enumerate(response.records):
-			filename = "powerpod.%s-%0.1fkm.raw" % (header.start_time.as_datetime().strftime("%Y-%m-%dT%H-%M-%S"), header.distance_metres / 1000)
-			filepath = os.path.join(args.ride_directory, filename)
+			filepath = os.path.join(self.extra.directory, header.to_filename())
 			args.actions.append(make_action("get_ride {} --filename={}".format(i, WHITESPACE_QUOTE(filepath))))
 
 @add_action
@@ -76,28 +80,6 @@ class HelpActions(argparse.Action):
 def arg_parser():
 	parser = argparse.ArgumentParser()
 	parser.add_argument('--port', default='/dev/ttyUSB0')
-	parser.add_argument(
-			'--profile-number',
-			dest='profile_number',
-			choices=[0, 1, 2, 3],
-			help="""
-				Set profile for profile editing operations.
-				Default is to use current profile; use of this option may
-				temporarily switch to a different profile.
-			""",
-	)
-	parser.add_argument(
-			'--ride-output-directory',
-			dest='ride_directory',
-			default='./rides',
-			help='For --get-all-rides',
-	)
-	parser.add_argument(
-			'--profile-output-directory',
-			dest='profile_directory',
-			default='./profiles',
-			help='For --get-all-profiles',
-	)
 	parser.add_argument(
 			'actions',
 			nargs='+',
