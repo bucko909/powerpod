@@ -79,8 +79,6 @@ Isaac detects device presence by looping "get serial number" and "get firmware v
     * Cal mass.
     * FTP.
     * Units.
-  * Make options to dump/restore profiles.
-    * To raw.
 * New stuff:
   * Figure out how to put the device into various cal modes.
   * Figure out screens data.

@@ -432,7 +432,7 @@ class SetProfileData2Response(object):
 		return None
 
 @add_command
-class SetProfileData2Command(StructCommand, namedtuple('PostSetProfileDataCommand', 'power_smoothing_seconds unknown_c')):
+class SetProfileData2Command(StructCommand, namedtuple('SetProfileData2Command', 'power_smoothing_seconds unknown_c')):
 	IDENTIFIER = 0x1e
 	SHAPE = '<hh'
 	RESPONSE = SetProfileData2Response

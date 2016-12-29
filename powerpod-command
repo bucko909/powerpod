@@ -9,6 +9,7 @@ import re
 import simplejson
 import sys
 import time
+import traceback
 import urllib2
 
 import powerpod
@@ -211,7 +212,8 @@ class SetDefaultProfileCommand(Action):
 		assert self.extra.number == response.number, response.number
 
 @add_action
-class DumpProfileCommand(Action):
+class DumpProfilesCommand(Action):
+	""" Since the profile editing commands are a different shape to profile getting, there seems little point in a raw dump. """
 	PARSER = argparse.ArgumentParser('dump_profiles')
 	PARSER.add_argument('--number', choices=(0, 1, 2, 3), type=int)
 	def run(self, protocol, args):
@@ -221,6 +223,41 @@ class DumpProfileCommand(Action):
 		else:
 			data = simplejson.dumps([profile._asdict() for profile in response.profiles])
 		sys.stdout.write("{}\n".format(data))
+
+@add_action
+class RestoreProfilesCommand(Action):
+	PARSER = argparse.ArgumentParser('restore_profiles', description="Note that this temporarily sets the default profile, and not all data is restored. Input should be JSON from dump_profiles.")
+	PARSER.add_argument('--number', choices=(0, 1, 2, 3), type=int)
+	def run(self, protocol, args):
+		response = protocol.do_command(powerpod.GetProfileNumberCommand())
+		original_profile = current_profile = response.number
+		data = simplejson.load(sys.stdin)
+		if self.extra.number is not None:
+			profiles = [(self.extra.number, data)]
+		else:
+			profiles = list(enumerate(data))
+		try:
+			for number, profile in profiles:
+				if current_profile != number:
+					current_profile = number
+					protocol.do_command(powerpod.SetProfileNumberCommand(number))
+				params = []
+				for field in powerpod.SetProfileDataCommand._fields:
+					params.append(profile.pop(field))
+				protocol.do_command(powerpod.SetProfileDataCommand(*params))
+				params = []
+				for field in powerpod.SetProfileData2Command._fields:
+					params.append(profile.pop(field))
+				protocol.do_command(powerpod.SetProfileData2Command(*params))
+				if profile:
+					LOGGER.warn("left over profile %s data: %r", number, profile)
+		except Exception:
+			traceback.print_exc()
+			if current_profile != original_profile:
+				protocol.do_command(powerpod.SetProfileNumberCommand(original_profile))
+			sys.exit(1)
+		if current_profile != original_profile:
+			protocol.do_command(powerpod.SetProfileNumberCommand(original_profile))
 
 def make_action(string):
 	parts = CMD_SPLIT.findall(string)
