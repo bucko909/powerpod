@@ -258,12 +258,17 @@ class SetUnitsCommand(StructCommand, namedtuple('SetUnitsCommand', 'units_type')
 
 
 
+class SetOdometerResponse(object):
+	@staticmethod
+	def from_simulator(command, simulator):
+		simulator.odometer_distance = command.odometer_distance
+
 @add_command
 class SetOdometerCommand(StructCommand, namedtuple('SetOdometerCommand', 'odometer_distance')):
 	# Unsure of units
 	IDENTIFIER = 0x0b
 	SHAPE = '<i'
-	RESPONSE = None
+	RESPONSE = SetOdometerResponse
 
 	def _encode(self):
 		return (int(round(self.odometer_distance * 10)),)
@@ -304,6 +309,10 @@ class GetOdometerResponse(StructType, namedtuple('GetOdometerResponse', 'unknown
 		assert unknown_1 == 1
 		assert unknown_2 == 0
 		return (unknown_0, unknown_1, unknown_2, odometer_distance * 0.1,)
+
+	@classmethod
+	def from_simulator(cls, _command, simulator):
+		return cls(1, 1, 0, simulator.odometer_distance)
 
 @add_command
 class GetOdometerCommand(StructCommand, namedtuple('GetOdometerCommand', '')):

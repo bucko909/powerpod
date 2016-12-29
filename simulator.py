@@ -17,6 +17,7 @@ class NewtonSimulator(threading.Thread):
 		self.protocol = None
 		self.profiles = None
 		self.current_profile = 0
+		self.odometer_distance = 0.0
 		self.reload = False
 		self.init()
 

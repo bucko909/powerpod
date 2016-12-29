@@ -56,7 +56,6 @@ class ListRidesAction(Action):
 		for i, header in enumerate(response.records):
 			sys.stdout.write("{} {}\n".format(i, header.to_filename()))
 
-
 @add_action
 class GetRideAction(Action):
 	PARSER = argparse.ArgumentParser('get_ride')
@@ -89,6 +88,25 @@ class EraseAllCommand(Action):
 		protocol.do_command(powerpod.EraseAllCommand())
 		rides = protocol.do_command(powerpod.GetFileListCommand())
 		assert not rides.size, rides
+
+@add_action
+class GetOdometerCommand(Action):
+	PARSER = argparse.ArgumentParser('get_odometer')
+	def run(self, protocol, args):
+		response = protocol.do_command(powerpod.GetOdometerCommand())
+		sys.stdout.write('{}\n'.format(response.odometer_distance))
+
+@add_action
+class GetOdometerCommand(Action):
+	PARSER = argparse.ArgumentParser('set_odometer')
+	PARSER.add_argument('distance', type=float, help='rounded to 1 decimal place')
+	def run(self, protocol, args):
+		distance = round(self.extra.distance, 1)
+		if distance != self.extra.distance:
+			LOGGER.warning('rounding to one decimal place')
+		protocol.do_command(powerpod.SetOdometerCommand(distance))
+		response = protocol.do_command(powerpod.GetOdometerCommand())
+		assert response.odometer_distance == distance, response.odometer_distance
 
 def make_action(string):
 	parts = CMD_SPLIT.findall(string)
