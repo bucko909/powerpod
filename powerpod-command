@@ -259,6 +259,54 @@ class RestoreProfilesCommand(Action):
 		if current_profile != original_profile:
 			protocol.do_command(powerpod.SetProfileNumberCommand(original_profile))
 
+@add_action
+class UpdateProfileCommand(Action):
+	PARSER = argparse.ArgumentParser('update_profile', description="Note that this temporarily sets the default profile.")
+	PARSER.add_argument('number', choices=(0, 1, 2, 3), type=int)
+	for command in (powerpod.SetProfileDataCommand, powerpod.SetProfileData2Command):
+		for field, typ in zip(command._fields, command.SHAPE[1:]):
+			if typ in ('h', 'H'):
+				field_type = int
+			else:
+				assert typ == 'f', typ
+				field_type = float
+			PARSER.add_argument('--' + field.replace('_', '-'), type=field_type)
+	def run(self, protocol, args):
+		response = protocol.do_command(powerpod.GetProfileNumberCommand())
+		original_profile = response.number
+		if original_profile != self.extra.number:
+			protocol.do_command(powerpod.SetProfileNumberCommand(self.extra.number))
+		profile = protocol.do_command(powerpod.GetProfileDataCommand()).profiles[self.extra.number]
+		coalesce = lambda field: getattr(self.extra, field) if getattr(self.extra, field) is not None else getattr(profile, field)
+		try:
+			params = []
+			used = False
+			for field in powerpod.SetProfileDataCommand._fields:
+				if getattr(self.extra, field) is None:
+					params.append(getattr(profile, field))
+				else:
+					used = True
+					params.append(getattr(self.extra, field))
+			if used:
+				protocol.do_command(powerpod.SetProfileDataCommand(*params))
+			params = []
+			used = False
+			for field in powerpod.SetProfileData2Command._fields:
+				if getattr(self.extra, field) is None:
+					params.append(getattr(profile, field))
+				else:
+					used = True
+					params.append(getattr(self.extra, field))
+			if used:
+				protocol.do_command(powerpod.SetProfileData2Command(*params))
+		except Exception:
+			traceback.print_exc()
+			if self.extra.number != original_profile:
+				protocol.do_command(powerpod.SetProfileNumberCommand(original_profile))
+			sys.exit(1)
+		if self.extra.number != original_profile:
+			protocol.do_command(powerpod.SetProfileNumberCommand(original_profile))
+
 def make_action(string):
 	parts = CMD_SPLIT.findall(string)
 	if not parts:
