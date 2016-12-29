@@ -152,7 +152,7 @@ class GetProfileDataResponse(StructType, namedtuple('GetProfileDataResponse', 's
 	@classmethod
 	def from_simulator(cls, _command, simulator):
 		assert len(simulator.profiles) == cls.LENGTH
-		return cls(len(simulator.profiles), simulator.profiles)
+		return cls(len(simulator.profiles) * NewtonProfile.SIZE, simulator.profiles)
 
 	@classmethod
 	def _decode(cls, length, data):
@@ -164,7 +164,7 @@ class GetProfileDataResponse(StructType, namedtuple('GetProfileDataResponse', 's
 		]
 
 	def _encode(self):
-		return (len(self.profiles), ''.join(profile.to_binary() for profile in self.profiles))
+		return (len(self.profiles) * NewtonProfile.SIZE, ''.join(profile.to_binary() for profile in self.profiles))
 
 @add_command
 class GetProfileDataCommand(StructCommand, namedtuple('GetProfileDataCommand', '')):

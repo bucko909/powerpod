@@ -6,6 +6,7 @@ import logging
 import os
 import os.path
 import re
+import simplejson
 import sys
 import time
 import urllib2
@@ -208,6 +209,18 @@ class SetDefaultProfileCommand(Action):
 		protocol.do_command(powerpod.SetProfileNumberCommand(self.extra.number))
 		response = protocol.do_command(powerpod.GetProfileNumberCommand())
 		assert self.extra.number == response.number, response.number
+
+@add_action
+class DumpProfileCommand(Action):
+	PARSER = argparse.ArgumentParser('dump_profiles')
+	PARSER.add_argument('--number', choices=(0, 1, 2, 3), type=int)
+	def run(self, protocol, args):
+		response = protocol.do_command(powerpod.GetProfileDataCommand())
+		if self.extra.number is not None:
+			data = simplejson.dumps(response.profiles[self.extra.number]._asdict())
+		else:
+			data = simplejson.dumps([profile._asdict() for profile in response.profiles])
+		sys.stdout.write("{}\n".format(data))
 
 def make_action(string):
 	parts = CMD_SPLIT.findall(string)
