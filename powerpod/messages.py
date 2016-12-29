@@ -19,12 +19,12 @@ class StructCommandMixIn(object):
 	@classmethod
 	def from_binary(cls, data):
 		assert struct.unpack('b', data[0])[0] == cls.IDENTIFIER
-		return super(StructCommandMixin, cls).from_binary(data[1:])
+		return super(StructCommandMixIn, cls).from_binary(data[1:])
 
 	@classmethod
 	def parse(cls, data):
 		# TODO sort out this mess
-		return super(StructCommandMixin, cls).from_binary(data)
+		return super(StructCommandMixIn, cls).from_binary(data)
 
 	def to_binary(self):
 		return struct.pack('b', self.IDENTIFIER) + super(StructCommandMixIn, self).to_binary()
