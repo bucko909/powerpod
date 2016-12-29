@@ -140,6 +140,13 @@ class GetSerialNumberCommand(Action):
 		response = protocol.do_command(powerpod.GetSerialNumberCommand())
 		sys.stdout.write('{}\n'.format(response.as_hex))
 
+@add_action
+class GetSpaceUsageCommand(Action):
+	PARSER = argparse.ArgumentParser('get_space_used')
+	def run(self, protocol, args):
+		response = protocol.do_command(powerpod.GetSpaceUsageCommand())
+		sys.stdout.write('{} %\n'.format(response.used_percentage))
+
 def make_action(string):
 	parts = CMD_SPLIT.findall(string)
 	if not parts:
