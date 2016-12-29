@@ -125,7 +125,7 @@ PROFILE_FIELDS = [
 	('unknown_7', 'f'),
 	('unknown_8', 'i'),
 	('wind_scaling_sqrt', 'f'),
-	('tilt_mult_10', 'h'),
+	('tilt_cal', 'h'),
 	('cal_mass_lb', 'h'),
 	('rider_mass_lb', 'h'),
 	('unknown_9', 'h'),
@@ -167,7 +167,12 @@ class NewtonProfile(StructType, namedtuple('NewtonProfile', zip(*PROFILE_FIELDS)
 		assert args[cls._fields.index('unknown_9')] in (1850, 1803), args[cls._fields.index('unknown_9')]
 		assert args[cls._fields.index('unknown_a')] in (0x0301, 0x0b01, 0x351), args[cls._fields.index('unknown_a')]
 		assert args[cls._fields.index('unknown_c')] == 50, args[cls._fields.index('unknown_c')]
+		args = list(args)
+		args[cls._fields.index('tilt_cal')] = args[cls._fields.index('tilt_cal')] * 0.1
 		return args
+
+	def _encode(self):
+		return self._replace(tilt_cal=int(round(self.tilt_cal * 10)))
 
 	@classmethod
 	def default(cls):
@@ -189,7 +194,7 @@ class NewtonProfile(StructType, namedtuple('NewtonProfile', zip(*PROFILE_FIELDS)
 				cadence_type=0,
 				hr_type=0,
 				power_type=0,
-				tilt_mult_10=-7,
+				tilt_cal=-0.7,
 				cal_mass_lb=205,
 				rider_mass_lb=180,
 				unknown_9=1803,

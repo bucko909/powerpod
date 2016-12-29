@@ -382,7 +382,7 @@ SET_PROFILE_FIELDS = [
 		('cadence_type', 'H'),
 		('hr_type', 'H'),
 		('power_type', 'H'),
-		('tilt_mult_10', 'h'),
+		('tilt_cal', 'h'),
 		('cal_mass_lb', 'h'),
 		('rider_mass_lb', 'h'),
 		('unknown_9', 'h'), # Verified equal to Profile. Values include 1850
@@ -403,6 +403,15 @@ class SetProfileDataCommand(StructCommand, namedtuple('SetProfileDataCommand', z
 	IDENTIFIER = 0x1a
 	SHAPE = '<' + ''.join(zip(*SET_PROFILE_FIELDS)[1])
 	RESPONSE = SetProfileDataResponse
+
+	@classmethod
+	def _decode(cls, *args):
+		args = list(args)
+		args[cls._fields.index('tilt_cal')] = args[cls._fields.index('tilt_cal')] * 0.1
+		return args
+
+	def _encode(self):
+		return self._replace(tilt_cal=int(round(self.tilt_cal * 10)))
 
 
 
