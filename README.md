@@ -69,15 +69,6 @@ Isaac detects device presence by looping "get serial number" and "get firmware v
 
 * Add to powerpod-command:
   * Get/set profile stuff:
-    * Power smoothing (get from profile).
-    * Sample smoothing (get from profile).
-    * ANT+ ids and types (what are the types?).
-    * Aero/Rolling properties.
-    * Wheel circumference.
-    * Total/rider mass.
-    * Tilt cal.
-    * Cal mass.
-    * FTP.
     * Units.
 * New stuff:
   * Figure out how to put the device into various cal modes.
