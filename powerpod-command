@@ -135,6 +135,22 @@ class GetFirmwareVersionCommand(Action):
 			sys.exit(1)
 
 @add_action
+class SetTrainerWeightsCommand(Action):
+	PARSER = argparse.ArgumentParser('set_trainer_weights', description="""All coefficients are in terms of a polynomial in mph, outputting Watts.""")
+	PARSER.add_argument('constant', type=float)
+	PARSER.add_argument('linear', type=float)
+	PARSER.add_argument('quadratic', type=float)
+	PARSER.add_argument('cubic', type=float)
+	def run(self, protocol, args):
+		command = powerpod.SetTrainerWeightsCommand(
+				self.extra.constant,
+				self.extra.linear,
+				self.extra.quadratic,
+				self.extra.cubic,
+		)
+		response = protocol.do_command(command)
+
+@add_action
 class GetSerialNumberCommand(Action):
 	PARSER = argparse.ArgumentParser('get_serial_number')
 	def run(self, protocol, args):

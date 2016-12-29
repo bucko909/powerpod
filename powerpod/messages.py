@@ -327,9 +327,10 @@ class GetOdometerCommand(StructCommand, namedtuple('GetOdometerCommand', '')):
 
 
 @add_command
-class SetTrainerWeightsCommand(StructCommand, namedtuple('SetTrainerWeightsCommand', 'data')):
+class SetTrainerWeightsCommand(StructCommand, namedtuple('SetTrainerWeightsCommand', 'constant linear quadratic cubic')):
+	""" All coefficients are in terms of a polynomial in mph, outputting Watts. """
 	IDENTIFIER = 0x14
-	SHAPE = '16s' # TODO
+	SHAPE = '<ffff'
 	RESPONSE = None
 
 
