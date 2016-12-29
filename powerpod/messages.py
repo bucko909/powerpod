@@ -15,20 +15,25 @@ def add_command(cls):
 	NewtonCommand.MAP[cls.IDENTIFIER] = cls
 	return cls
 
-class StructCommand(NewtonCommand, StructType):
+class StructCommandMixIn(object):
 	@classmethod
 	def from_binary(cls, data):
 		assert struct.unpack('b', data[0])[0] == cls.IDENTIFIER
-		return super(StructCommand, cls).from_binary(data[1:])
+		return super(StructCommandMixin, cls).from_binary(data[1:])
 
 	@classmethod
 	def parse(cls, data):
 		# TODO sort out this mess
-		return super(StructCommand, cls).from_binary(data)
+		return super(StructCommandMixin, cls).from_binary(data)
 
 	def to_binary(self):
-		return struct.pack('b', self.IDENTIFIER) + super(StructCommand, self).to_binary()
+		return struct.pack('b', self.IDENTIFIER) + super(StructCommandMixIn, self).to_binary()
 
+class StructCommand(StructCommandMixIn, NewtonCommand, StructType):
+	pass
+
+class StructListCommand(StructCommandMixIn, NewtonCommand, StructListType):
+	pass
 
 
 @add_command
@@ -335,15 +340,26 @@ class SetTrainerWeightsCommand(StructCommand, namedtuple('SetTrainerWeightsComma
 
 
 
-class NewtonInterval(object):
-	pass # TODO
+class NewtonInterval(StructType, namedtuple('NewtonInterval', 'power_watts work_secs rest_secs')):
+	SHAPE = '<hhh'
 
 @add_command
-class SetIntervalsCommand(StructCommand, namedtuple('SetIntervalsCommand', 'size records')):
+class SetIntervalsCommand(StructListCommand, namedtuple('SetIntervalsCommand', 'size size_byte records')):
+	# Dunno what size_byte re
 	IDENTIFIER = 0x19
-	SHAPE = '<h'
+	SHAPE = '<hb'
 	RECORD_TYPE = NewtonInterval
 	RESPONSE = None
+
+	@classmethod
+	def parse(cls, data):
+		# TODO sort out this mess
+		return super(SetIntervalsCommand, cls).from_binary(data)
+
+	@staticmethod
+	def _decode(size, size_byte):
+		assert size == size_byte
+		return size, size_byte
 
 
 

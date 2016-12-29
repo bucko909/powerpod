@@ -150,6 +150,21 @@ class SetTrainerWeightsCommand(Action):
 		)
 		response = protocol.do_command(command)
 
+def interval_format(string):
+	power_watts, work_secs, rest_secs = map(int, string.split(':'))
+	return powerpod.NewtonInterval(power_watts, work_secs, rest_secs)
+
+@add_action
+class SetIntervalsCommand(Action):
+	PARSER = argparse.ArgumentParser('set_intervals')
+	PARSER.add_argument('intervals', type=interval_format, nargs='*')
+	def run(self, protocol, args):
+		protocol.do_command(powerpod.SetIntervalsCommand(
+						len(self.extra.intervals),
+						len(self.extra.intervals),
+						self.extra.intervals,
+		))
+
 @add_action
 class GetSerialNumberCommand(Action):
 	PARSER = argparse.ArgumentParser('get_serial_number')

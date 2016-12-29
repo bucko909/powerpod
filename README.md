@@ -83,7 +83,6 @@ Isaac detects device presence by looping "get serial number" and "get firmware v
   * Make options to dump/restore profiles.
     * To raw.
     * To JSON (dump known fields).
-  * Get/set intervals (for Newton).
 * New stuff:
   * Figure out how to put the device into various cal modes.
   * Figure out screens data.

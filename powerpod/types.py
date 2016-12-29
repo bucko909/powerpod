@@ -48,7 +48,7 @@ class StructListType(object):
 		size_offset = cls._fields.index('size')
 		record_count = header[size_offset]
 		record_size = struct.Struct(cls.RECORD_TYPE.SHAPE).size
-		assert header_size + record_count * record_size == len(data)
+		assert header_size + record_count * record_size == len(data), (header_size, record_count, record_size, len(data))
 		raw_records = [data[header_size + record_size * x:header_size + record_size * (x + 1)] for x in range(record_count)]
 		return cls(*(cls._decode(*header) + (map(cls.RECORD_TYPE.from_binary, raw_records),)))
 
