@@ -261,21 +261,21 @@ class SetUnitsCommand(StructCommand, namedtuple('SetUnitsCommand', 'units_type')
 class SetOdometerResponse(object):
 	@staticmethod
 	def from_simulator(command, simulator):
-		simulator.odometer_distance = command.odometer_distance
+		simulator.odometer_distance = command.distance_km
 
 @add_command
-class SetOdometerCommand(StructCommand, namedtuple('SetOdometerCommand', 'odometer_distance')):
+class SetOdometerCommand(StructCommand, namedtuple('SetOdometerCommand', 'distance_km')):
 	# Unsure of units
 	IDENTIFIER = 0x0b
 	SHAPE = '<i'
 	RESPONSE = SetOdometerResponse
 
 	def _encode(self):
-		return (int(round(self.odometer_distance * 10)),)
+		return (int(round(self.distance_km * 10)),)
 
 	@classmethod
-	def _decode(cls, odometer_distance):
-		return (odometer_distance * 0.1,)
+	def _decode(cls, distance):
+		return (distance * 0.1,)
 
 
 
@@ -296,19 +296,19 @@ class SetSampleRateCommand(StructCommand, namedtuple('SetSampleRateCommand', 'un
 
 
 
-class GetOdometerResponse(StructType, namedtuple('GetOdometerResponse', 'unknown_0 unknown_1 unknown_2 odometer_distance')):
+class GetOdometerResponse(StructType, namedtuple('GetOdometerResponse', 'unknown_0 unknown_1 unknown_2 distance_km')):
 	# TODO unknowns are observed at 1, 1, 0
 	SHAPE = '<hhhi'
 
 	def _encode(self):
-		return (self.unknown_0, self.unknown_1, self.unknown_2, int(round(self.odometer_distance * 10)),)
+		return (self.unknown_0, self.unknown_1, self.unknown_2, int(round(self.distance_km * 10)),)
 
 	@classmethod
-	def _decode(cls, unknown_0, unknown_1, unknown_2, odometer_distance):
+	def _decode(cls, unknown_0, unknown_1, unknown_2, distance):
 		assert unknown_0 == 1
 		assert unknown_1 == 1
 		assert unknown_2 == 0
-		return (unknown_0, unknown_1, unknown_2, odometer_distance * 0.1,)
+		return (unknown_0, unknown_1, unknown_2, distance * 0.1,)
 
 	@classmethod
 	def from_simulator(cls, _command, simulator):

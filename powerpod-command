@@ -94,19 +94,19 @@ class GetOdometerCommand(Action):
 	PARSER = argparse.ArgumentParser('get_odometer')
 	def run(self, protocol, args):
 		response = protocol.do_command(powerpod.GetOdometerCommand())
-		sys.stdout.write('{}\n'.format(response.odometer_distance))
+		sys.stdout.write('{} km\n'.format(response.distance_km))
 
 @add_action
 class GetOdometerCommand(Action):
 	PARSER = argparse.ArgumentParser('set_odometer')
-	PARSER.add_argument('distance', type=float, help='rounded to 1 decimal place')
+	PARSER.add_argument('distance', type=float, help='km rounded to 1 decimal place')
 	def run(self, protocol, args):
 		distance = round(self.extra.distance, 1)
 		if distance != self.extra.distance:
 			LOGGER.warning('rounding to one decimal place')
 		protocol.do_command(powerpod.SetOdometerCommand(distance))
 		response = protocol.do_command(powerpod.GetOdometerCommand())
-		assert response.odometer_distance == distance, response.odometer_distance
+		assert response.distance_km == distance, response.distance_km
 
 def make_action(string):
 	parts = CMD_SPLIT.findall(string)
