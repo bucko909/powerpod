@@ -133,6 +133,13 @@ class GetFirmwareVersionCommand(Action):
 			sys.stdout.write('{!r} is not latest; {!r} is available\n'.format(response.version_encoded, best_version))
 			sys.exit(1)
 
+@add_action
+class GetSerialNumberCommand(Action):
+	PARSER = argparse.ArgumentParser('get_serial_number')
+	def run(self, protocol, args):
+		response = protocol.do_command(powerpod.GetSerialNumberCommand())
+		sys.stdout.write('{}\n'.format(response.as_hex))
+
 def make_action(string):
 	parts = CMD_SPLIT.findall(string)
 	if not parts:

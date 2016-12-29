@@ -70,6 +70,10 @@ class GetSerialNumberResponse(StructType, namedtuple('GetSerialNumberResponse', 
 	def from_simulator(cls, _command, simulator):
 		return cls(''.join(chr(int(x, 16)) for x in simulator.serial_number.split('-')))
 
+	@property
+	def as_hex(self):
+		return '-'.join('{:02X}'.format(ord(x)) for x in self.serial_number)
+
 @add_command
 class GetSerialNumberCommand(StructCommand, namedtuple('GetSerialNumberCommand', '')):
 	IDENTIFIER = 0x09
