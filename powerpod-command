@@ -1,5 +1,6 @@
 #!/usr/bin/python
 import argparse
+import datetime
 import functools
 import logging
 import os
@@ -146,6 +147,19 @@ class GetSpaceUsageCommand(Action):
 	def run(self, protocol, args):
 		response = protocol.do_command(powerpod.GetSpaceUsageCommand())
 		sys.stdout.write('{} %\n'.format(response.used_percentage))
+
+TIME_FORMAT = lambda string: datetime.datetime.strptime(string, '%Y-%m-%dT%H:%M:%S')
+
+@add_action
+class SetTimeCommand(Action):
+	PARSER = argparse.ArgumentParser('set_time')
+	PARSER.add_argument('--time', type=TIME_FORMAT, help='eg. 2016-01-31T22:01:12; default=local time', required=False)
+	def run(self, protocol, args):
+		if self.extra.time is None:
+			time = datetime.datetime.now()
+		else:
+			time = self.extra.time
+		protocol.do_command(powerpod.SetTimeCommand(0, powerpod.NewtonTime.from_datetime(time)))
 
 def make_action(string):
 	parts = CMD_SPLIT.findall(string)
