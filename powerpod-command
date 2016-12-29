@@ -7,6 +7,7 @@ import os.path
 import re
 import sys
 import time
+import urllib2
 
 import powerpod
 
@@ -108,6 +109,30 @@ class GetOdometerCommand(Action):
 		response = protocol.do_command(powerpod.GetOdometerCommand())
 		assert response.distance_km == distance, response.distance_km
 
+@add_action
+class GetFirmwareVersionCommand(Action):
+	PARSER = argparse.ArgumentParser('get_firmware_version')
+	def run(self, protocol, args):
+		response = protocol.do_command(powerpod.GetFirmwareVersionCommand())
+		sys.stdout.write('{} {}\n'.format(response.version_encoded, response.version))
+
+@add_action
+class GetFirmwareVersionCommand(Action):
+	PARSER = argparse.ArgumentParser('check_firmware_version', description="Exits with status 1 if not latest")
+	PARSER.add_argument('type', choices=('PwrPod', 'iBike'))
+	def run(self, protocol, args):
+		response = protocol.do_command(powerpod.GetFirmwareVersionCommand())
+		# SUPER PORCELAIN!
+		# I think I'm actually meant to read FWstatus.txt, but that is huge and
+		# clearly includes much more than the latest version!
+		resp = urllib2.urlopen('http://ibikesports.com/iBike_update/')
+		resp_content = resp.read()
+		versions = re.compile(r'<a href="(PwrPod|iBike)(\d+)\.iBFW3.txt">').findall(resp_content)
+		best_version = max(int(version) for type, version in versions if type == self.extra.type)
+		if best_version != response.version_encoded:
+			sys.stdout.write('{!r} is not latest; {!r} is available\n'.format(response.version_encoded, best_version))
+			sys.exit(1)
+
 def make_action(string):
 	parts = CMD_SPLIT.findall(string)
 	if not parts:
@@ -138,6 +163,7 @@ def arg_parser():
 			type=make_action,
 			help="""
 				Actions to perform. See --help-actions for a list.
+				Parameters to actions must be quoted with the action.
 			""",
 	)
 	parser.add_argument(
