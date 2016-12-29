@@ -68,7 +68,6 @@ Isaac detects device presence by looping "get serial number" and "get firmware v
 ## TODO / Roadmap
 
 * Add to powerpod-command:
-  * Switch profile.
   * Get/set profile stuff:
     * Power smoothing (get from profile).
     * Sample smoothing (get from profile).

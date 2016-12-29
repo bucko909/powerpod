@@ -133,8 +133,8 @@ class GetProfileNumberResponse(StructType, namedtuple('GetProfileNumberResponse'
 	SHAPE = '<h'
 
 	@classmethod
-	def from_simulator(cls, _command, _simulator):
-		return cls(0)
+	def from_simulator(cls, _command, simulator):
+		return cls(simulator.current_profile)
 
 @add_command
 class GetProfileNumberCommand(StructCommand, namedtuple('GetProfileNumberCommand', '')):
@@ -409,14 +409,14 @@ class SetProfileDataCommand(StructCommand, namedtuple('SetProfileDataCommand', z
 class SetProfileNumberResponse(object):
 	@staticmethod
 	def from_simulator(command, simulator):
-		simulator.current_profile = command.profile_number
+		simulator.current_profile = command.number
 		return None
 
 @add_command
-class SetProfileNumberCommand(StructCommand, namedtuple('SetProfileNumberCommand', 'profile_number')):
+class SetProfileNumberCommand(StructCommand, namedtuple('SetProfileNumberCommand', 'number')):
 	IDENTIFIER = 0x1d
 	SHAPE = '<h'
-	RESPONSE = None
+	RESPONSE = SetProfileNumberResponse
 
 
 SET_PROFILE2_FIELDS = [
