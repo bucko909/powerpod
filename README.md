@@ -31,10 +31,6 @@ Get all of the rides from the device into the `rides` directory, obliterating ex
 mkdir rides && ./powerpod-command get_all_rides
 ```
 
-TODO:
-
-* Skip existing files.
-
 ## Syncing up a Strava ride
 
 Make an `extradata.json` file for the Strava extension, trying to guess a relative offset.
