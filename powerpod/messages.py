@@ -448,16 +448,46 @@ class SetProfileData2Command(StructCommand, namedtuple('SetProfileData2Command',
 
 
 
+SCREEN_FIELDS = [
+		"s{}{}{}".format(screen, pos, field)
+		for screen in (1, 2)
+		for field in ('agg', 'dat', 'unk')
+		for pos in ('t', 'm', 'b')
+]
 @add_command
-class SetScreensCommand(StructCommand, namedtuple('SetScreensCommand', 'data')):
+class SetScreensCommand(StructCommand, namedtuple('SetScreensCommand', SCREEN_FIELDS)):
+	# TOP:
+	# Speed:            ( 0,  2,  1)
+	# Average Speed:    ( 2,  2,  1)
+	# Wind:             (16, 18, 17)
+	# Average Wind:     (18, 18, 17)
+	# Slope:            (13, 15, 14)
+	# Average Slope:    (15, 15, 14)
+	# Power:            ( 7,  9,  8)
+	# Average Power:    ( 9,  9,  8)
+	# Blank:            (22, 20, 19)
+	# MIDDLE:
+	# Power:            ( 7,  9,  8)
+	# Distance/Power:   ( 3,  5,  4)
+	# Normalized Power: (21, 21, 21)
+	# Wind:             (16, 18, 17) # Same as TOP
+	# Blank:            (22, 20, 19) # Same as TOP
+	# BOTTOM
+	# Trip Time:        ( 6,  6,  6)
+	# Other Data:       (10, 12, 11) # Same as Blank
+	# Blank:            (10, 12, 11) # Not same as TOP/MIDDLE
 	IDENTIFIER = 0x29
-	SHAPE = '18s' # TODO
+	SHAPE = 'b' * 18
 	RESPONSE = None
 
 
 
-class GetAllScreensResponse(StructType, namedtuple('GetAllScreensResponse', '')):
-	pass # TODO
+class GetAllScreensResponse(StructType, namedtuple('GetAllScreensResponse', 'data')):
+	SHAPE = '76s' # TODO
+
+	@classmethod
+	def from_simulator(cls, _command, _simulator):
+		return cls('\x48\x00\x00\x00' + '\x00\x03\x06\x02\x05\x06\x01\x04\x06\x00\x07\n\x02\t\x0c\x01\x08\x0b' * 4)
 
 @add_command
 class GetAllScreensCommand(StructCommand, namedtuple('GetAllScreensCommand', '')):
