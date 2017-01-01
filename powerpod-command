@@ -307,6 +307,45 @@ class UpdateProfileCommand(Action):
 		if self.extra.number != original_profile:
 			protocol.do_command(powerpod.SetProfileNumberCommand(original_profile))
 
+@add_action
+class DumpScreensCommand(Action):
+	""" Since the profile editing commands are a different shape to profile getting, there seems little point in a raw dump. """
+	PARSER = argparse.ArgumentParser('dump_screens')
+	PARSER.add_argument('--number', choices=(0, 1, 2, 3), type=int)
+	def run(self, protocol, args):
+		response = protocol.do_command(powerpod.GetAllScreensCommand())
+		if self.extra.number is not None:
+			data = simplejson.dumps(response.records[self.extra.number].to_dict())
+		else:
+			data = simplejson.dumps([profile.to_dict() for profile in response.records])
+		sys.stdout.write("{}\n".format(data))
+
+@add_action
+class RestoreScreensCommand(Action):
+	PARSER = argparse.ArgumentParser('restore_screens', description="Note that this temporarily sets the default profile, and not all data is restored. Input should be JSON from dump_screens.")
+	PARSER.add_argument('--number', choices=(0, 1, 2, 3), type=int)
+	def run(self, protocol, args):
+		response = protocol.do_command(powerpod.GetProfileNumberCommand())
+		original_profile = current_profile = response.number
+		data = simplejson.load(sys.stdin)
+		if self.extra.number is not None:
+			screenss = [(self.extra.number, data)]
+		else:
+			screenss = list(enumerate(data))
+		try:
+			for number, screens in screenss:
+				if current_profile != number:
+					current_profile = number
+					protocol.do_command(powerpod.SetProfileNumberCommand(number))
+				protocol.do_command(powerpod.SetScreensCommand(powerpod.NewtonProfileScreens.from_dict(screens)))
+		except Exception:
+			traceback.print_exc()
+			if current_profile != original_profile:
+				protocol.do_command(powerpod.SetProfileNumberCommand(original_profile))
+			sys.exit(1)
+		if current_profile != original_profile:
+			protocol.do_command(powerpod.SetProfileNumberCommand(original_profile))
+
 def make_action(string):
 	parts = CMD_SPLIT.findall(string)
 	if not parts:

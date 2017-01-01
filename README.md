@@ -72,8 +72,6 @@ Isaac detects device presence by looping "get serial number" and "get firmware v
     * Units.
 * New stuff:
   * Figure out how to put the device into various cal modes.
-  * Figure out screens data.
-    * Get/set screens (for Newton).
   * Remaining fields in ride header.
     * Add asserts for "seen" values to make spotting stuff easier.
     * Figure out why Isaac alters altitude numbers a bit.

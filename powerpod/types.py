@@ -471,3 +471,111 @@ class NewtonRideHeader(StructType, namedtuple('NewtonRideHeader', 'unknown_0 sta
 
 	def to_filename(self):
 		return "powerpod.%s-%0.1fkm.raw" % (self.start_time.as_datetime().strftime("%Y-%m-%dT%H-%M-%S"), self.distance_metres / 1000)
+
+class NewtonProfileScreens(StructType):
+	# Data is laid out as [LEFT, RIGHT]
+	# Sides are [AGG1, AGG2, AGG3]
+	# Aggregates are [TOP, MIDDLE, BOTTOM]
+
+	# Meaning of indices in metrics
+	# (unverified, but 'average' is (1, 2, 1) and plain is (0, 2, 1))
+	AGG_NOW = 0
+	#AGG_TRIP = 1
+	AGG_AVG = 2
+
+	# Metrics (PowerPod 6.12)
+	METRIC_SPEED = (0, 2, 1)
+	METRIC_DISTANCE_POWER = (3, 5, 4)
+	METRIC_TIME = (6, 6, 6) # I guess no point in anything but 'trip'
+	METRIC_POWER = (7, 9, 8)
+	METRIC_OTHER = (10, 12, 11)
+	METRIC_SLOPE = (13, 15, 14)
+	METRIC_WIND = (16, 18, 17)
+	METRIC_BLANK = (19, 22, 20)
+	METRIC_NORMALISED_POWER = (21, 21, 21) # I guess no point in anything but 'trip'
+
+	# Which metrics are valid on which screens?
+	VALID_TOP = set([METRIC_SPEED, METRIC_WIND, METRIC_SLOPE, METRIC_POWER])
+	# Add averages.
+	VALID_TOP.update((z, y, z) for _x, y, z in list(VALID_TOP))
+	VALID_TOP.add(METRIC_BLANK)
+	VALID_MIDDLE = set([METRIC_POWER, METRIC_DISTANCE_POWER, METRIC_NORMALISED_POWER, METRIC_WIND, METRIC_BLANK])
+	VALID_BOTTOM = set([METRIC_TIME, METRIC_OTHER])
+	VALID = (VALID_BOTTOM, VALID_MIDDLE, VALID_TOP)
+
+	# Screens
+	TOP = 0
+	MIDDLE = 1
+	BOTTOM = 2
+	ROWS = 3
+
+	# Sides
+	LEFT = 0
+	RIGHT = 1
+	SIDES = 2
+
+	# Any triple is (Now, Trip, Average)
+	IDENTIFIER = 0x29
+	SHAPE = 'b' * 18
+	RESPONSE = None
+	def __init__(self, data):
+		self._data = list(data)
+
+	@classmethod
+	def _decode(cls, *args):
+		return args,
+
+	def _encode(self):
+		return self._data
+
+	def set_screen(self, side, row, metric, aggregate):
+		assert 0 <= side < self.SIDES, side
+		assert 0 <= row < self.ROWS, row
+		assert metric in self.VALID[row], (metric, row)
+		assert aggregate in (self.AGG_AVG, self.AGG_NOW), aggregate
+		metric = [metric[x] for x in (aggregate, 1, 2)]
+		for metric_idx in (0, 1, 2):
+			self._data[self._index(side, row, metric_idx)] = metric[metric_idx]
+
+	def to_dict(self):
+		sides = {}
+		for side_i, side_n in enumerate(['left', 'right']):
+			side = sides[side_n] = {}
+			for row_i, row_n in enumerate(['top', 'middle', 'bottom']):
+				row = side[row_n] = []
+				for metric_idx in (0, 1, 2):
+					row.append(self._data[self._index(side_i, row_i, metric_idx)])
+		return sides
+
+	def __repr__(self):
+		return "{}.from_dict({})".format(self.__class__.__name__, self.to_dict())
+
+	@classmethod
+	def from_dict(cls, sides):
+		data = [0] * 18
+		for side_i, side_n in enumerate(['left', 'right']):
+			side = sides[side_n]
+			for row_i, row_n in enumerate(['top', 'middle', 'bottom']):
+				row = side[row_n]
+				for metric_idx, value in enumerate(row):
+					data[cls._index(side_i, row_i, metric_idx)] = value
+		return cls(data)
+
+	@classmethod
+	def _index(cls, side, row, metric_idx):
+		return (side * 3 + metric_idx) * cls.ROWS + row
+
+	@classmethod
+	def default(cls):
+		return cls.from_dict({
+			'left': {
+				'top': cls.METRIC_SPEED,
+				'middle': cls.METRIC_DISTANCE_POWER,
+				'bottom': cls.METRIC_TIME,
+			},
+			'right': {
+				'top': cls.METRIC_SPEED,
+				'middle': cls.METRIC_POWER,
+				'bottom': cls.METRIC_OTHER,
+			}
+		})
