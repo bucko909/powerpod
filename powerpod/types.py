@@ -28,9 +28,9 @@ class StructType(object):
 		""" data from self -> data for pack """
 		return self
 
-	@property
-	def size(self):
-		return struct.Struct(self.SHAPE).size
+	@classmethod
+	def byte_size(cls):
+		return struct.Struct(cls.SHAPE).size
 
 class StructListType(object):
 	"""
@@ -43,12 +43,21 @@ class StructListType(object):
 	@classmethod
 	def from_binary(cls, data):
 		encode = struct.Struct(cls.SHAPE)
-		header_size = encode.size
+		header_size = cls.byte_size()
 		header = encode.unpack(data[:header_size])
-		size_offset = cls._fields.index('size')
-		record_count = header[size_offset]
-		record_size = struct.Struct(cls.RECORD_TYPE.SHAPE).size
-		assert header_size + record_count * record_size == len(data), (header_size, record_count, record_size, len(data))
+		record_size = cls.RECORD_TYPE.byte_size()
+		try:
+			# Specifies number of records
+			size_offset = cls._fields.index('size')
+			record_count = header[size_offset]
+			assert header_size + record_count * record_size == len(data), (header_size, record_count, record_size, len(data))
+		except ValueError:
+			# Specifies length of data
+			size_offset = cls._fields.index('data_size')
+			total_size = header[size_offset]
+			assert len(data) == header_size + total_size, (header_size, total_size, len(data))
+			assert total_size % record_size == 0, (total_size, record_size)
+			record_count = header[size_offset] / record_size
 		raw_records = [data[header_size + record_size * x:header_size + record_size * (x + 1)] for x in range(record_count)]
 		return cls(*(cls._decode(*header) + (map(cls.RECORD_TYPE.from_binary, raw_records),)))
 
@@ -58,13 +67,21 @@ class StructListType(object):
 		return args
 
 	def to_binary(self):
-		assert self.size == len(self.records), (self.size, len(self.records))
-		return struct.pack(self.SHAPE, *self._encode()) + ''.join(record.to_binary() for record in self.records)
+		data_binary = ''.join(record.to_binary() for record in self.records)
+		if hasattr(self, 'size'):
+			assert self.size == len(self.records), (self.size, len(self.records))
+		else:
+			assert self.data_size == len(data_binary), (self.data_size, data_binary)
+		return struct.pack(self.SHAPE, *self._encode()) + data_binary
 
 	def _encode(self):
 		""" data from self -> data for pack """
 		record_offset = self._fields.index('records')
 		return self[:record_offset] + self[record_offset+1:]
+
+	@classmethod
+	def byte_size(cls):
+		return struct.Struct(cls.SHAPE).size
 
 TIME_FIELDS = [
 	('secs', 'b'),
@@ -145,7 +162,6 @@ PROFILE_FIELDS = [
 ]
 class NewtonProfile(StructType, namedtuple('NewtonProfile', zip(*PROFILE_FIELDS)[0])):
 	SHAPE = '<' + ''.join(zip(*PROFILE_FIELDS)[1])
-	SIZE = struct.Struct(SHAPE).size
 
 	@classmethod
 	def _decode(cls, *args):
@@ -445,7 +461,6 @@ class NewtonRideHeader(StructType, namedtuple('NewtonRideHeader', 'unknown_0 sta
 	# newton time
 	# float encoding of ride length in metres.
 	SHAPE = '<h8sf'
-	SIZE = 14
 
 	def _encode(self):
 		return (self.unknown_0, self.start_time.to_binary(), self.distance_metres)

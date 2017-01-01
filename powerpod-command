@@ -219,9 +219,9 @@ class DumpProfilesCommand(Action):
 	def run(self, protocol, args):
 		response = protocol.do_command(powerpod.GetProfileDataCommand())
 		if self.extra.number is not None:
-			data = simplejson.dumps(response.profiles[self.extra.number]._asdict())
+			data = simplejson.dumps(response.records[self.extra.number]._asdict())
 		else:
-			data = simplejson.dumps([profile._asdict() for profile in response.profiles])
+			data = simplejson.dumps([profile._asdict() for profile in response.records])
 		sys.stdout.write("{}\n".format(data))
 
 @add_action
@@ -276,7 +276,7 @@ class UpdateProfileCommand(Action):
 		original_profile = response.number
 		if original_profile != self.extra.number:
 			protocol.do_command(powerpod.SetProfileNumberCommand(self.extra.number))
-		profile = protocol.do_command(powerpod.GetProfileDataCommand()).profiles[self.extra.number]
+		profile = protocol.do_command(powerpod.GetProfileDataCommand()).records[self.extra.number]
 		coalesce = lambda field: getattr(self.extra, field) if getattr(self.extra, field) is not None else getattr(profile, field)
 		try:
 			params = []

@@ -144,27 +144,21 @@ class GetProfileNumberCommand(StructCommand, namedtuple('GetProfileNumberCommand
 
 
 
-class GetProfileDataResponse(StructType, namedtuple('GetProfileDataResponse', 'size profiles')):
+class GetProfileDataResponse(StructListType, namedtuple('GetProfileDataResponse', 'data_size records')):
 	LENGTH = 4
 	# TODO is this int32 length or int16 length and something else?
-	SHAPE = '<i' + str(LENGTH * NewtonProfile.SIZE) + 's'
+	SHAPE = '<i'
+	RECORD_TYPE = NewtonProfile
 
 	@classmethod
 	def from_simulator(cls, _command, simulator):
 		assert len(simulator.profiles) == cls.LENGTH
-		return cls(len(simulator.profiles) * NewtonProfile.SIZE, simulator.profiles)
+		return cls(len(simulator.profiles) * NewtonProfile.byte_size(), simulator.profiles)
 
 	@classmethod
-	def _decode(cls, length, data):
-		assert length == cls.LENGTH * NewtonProfile.SIZE, (length, data)
-		assert length == len(data), (length, len(data), data)
-		return length, [
-				NewtonProfile.from_binary(data[x * NewtonProfile.SIZE:(x + 1) * NewtonProfile.SIZE])
-				for x in range(cls.LENGTH)
-		]
-
-	def _encode(self):
-		return (len(self.profiles) * NewtonProfile.SIZE, ''.join(profile.to_binary() for profile in self.profiles))
+	def _decode(cls, length):
+		assert length == cls.LENGTH * NewtonProfile.byte_size(), (length, data)
+		return length,
 
 @add_command
 class GetProfileDataCommand(StructCommand, namedtuple('GetProfileDataCommand', '')):
