@@ -8,12 +8,13 @@ LOGGER = logging.getLogger(__name__)
 
 class NewtonSimulator(threading.Thread):
 	firmware_version = 6.12
-	def __init__(self, serial_number, serial_connection=None):
+	def __init__(self, serial_number, clip_length, serial_connection=None):
 		super(NewtonSimulator, self).__init__()
 		if serial_connection is None:
 			serial_connection = powerpod.NewtonSerialConnection()
 		self.serial_connection = serial_connection
 		self.serial_number = serial_number
+		self.clip_length = clip_length
 		self.protocol = None
 		self.profiles = None
 		self.current_profile = 0
@@ -57,7 +58,7 @@ class NewtonSimulator(threading.Thread):
 					log = LOGGER.info
 				log("<- %r", command)
 				response = command.get_response(self)
-				log("-> %s", repr(response)[:200])
+				log("-> %s", repr(response)[:self.clip_length])
 				response_bin = None if response is None else response.to_binary()
 				self.protocol.write_message(response_bin)
 
@@ -65,6 +66,7 @@ def arg_parser():
 	parser = argparse.ArgumentParser()
 	parser.add_argument('--port')
 	parser.add_argument('--serial-number', default='-'.join(['00'] * 16))
+	parser.add_argument('--clip-length', default=200, type=int, help='maximum length of (sent) debug output')
 	return parser
 
 def main():
@@ -73,7 +75,7 @@ def main():
 	kwargs = {}
 	if args.port is not None:
 		kwargs['serial_connection'] = powerpod.NewtonSerialConnection(port=args.port)
-	sim = NewtonSimulator(serial_number=args.serial_number, **kwargs)
+	sim = NewtonSimulator(serial_number=args.serial_number, clip_length=args.clip_length, **kwargs)
 	sim.run()
 
 if __name__ == '__main__':
