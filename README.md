@@ -79,7 +79,6 @@ Isaac detects device presence by looping "get serial number" and "get firmware v
     * `unknown_0` may be tilt cal correction (or just corrected tilt cal).
     * `acceleration_maybe` -- maybe try strobing it and try a mass change in Isaac?
     * Everything else.
-  * WTF is `ftp_per_kilo_ish` actually? Get some good data.
 * Tool to convert `.raw` -> `.gpx`.
   * Something to print out a decoded header, too (wrong shape for GPX!).
   * Alter correlate tool to correlate two `.gpx` files (PowerTap time invariably disagrees with GPS by at least a few seconds).

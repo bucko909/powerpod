@@ -126,7 +126,9 @@ PROFILE_FIELDS = [
 	# If I send 0xffff, I get 0x8009.
 	# If I then set the 'user-edited' flag by messing with stuff, I get 0x8005.
 	# On a pristine profile, I see 0x800e or 0x800d and it's reset to 0x8009 with just a get/set. On an old recording, I saw it reset to 0x8005 on a user-edit.
-	# Resetting the profile gets 0x800c.
+	# Resetting the profile gets 0x800c. Setting it once (or running through setup) gets 0x800d.
+	# bit 0 = pristine-ness.
+	# bit 3 = clean-ness (unset when "User Edited").
 	# Conclusion: Nothing to see here, but user edited-ness.
 	('user_edited', 'H', {0x8009: False, 0x8005: True}),
 	('total_mass_lb', 'h'),
@@ -146,6 +148,50 @@ PROFILE_FIELDS = [
 	('cal_mass_lb', 'h'),
 	('rider_mass_lb', 'h'),
 	('unknown_9', 'h'),
+	# ftp_per_kilo_ish:
+	# Unaffected by bike weight/total weight. Just rider weight.
+	# rider(lb) FTP  20min  value
+	# 100       38   40     1     # Min valid
+	# 100       85   91     1
+	# 100       86   92     2
+	# 100       105  111    2
+	# 100       106  112    3
+	# 100       120  126    3
+	# 100       121  127    4
+	# 100       149  157    4
+	# 100       150  158    5
+	# 100       163  172    5
+	# 100       164  173    6
+	# 100       183  193    6
+	# 100       184  194    7
+	# 100       207  218    7
+	# 100       208  219    8
+	# 100       227  239    8
+	# 100       228  240    9
+	# 100       247  260    9
+	# 100       248  261    10   # Stops increasing
+	#  80       200  211    10   # Stops increasing
+	#  81       200  211    9
+	#  88       200  211    9
+	#  89       200  211    8
+	#  96       200  211    8
+	#  97       200  211    7
+	# 109       200  211    7
+	# 110       200  211    6
+	# 122       200  211    6
+	# 123       200  211    5
+	# 134       200  211    5
+	# 135       200  211    4
+	# 165       200  211    4
+	# 166       200  211    3
+	# 189       200  211    3
+	# 190       200  211    2
+	# 232       200  211    2
+	# 233       200  211    1
+	# Roughly, this is (ftp_per_kilo-1.2)/0.454
+	# The values around 3 seem underestimated (formula underestimates).
+	# I think this is something related to the Coggan scale,
+	# which goes from 1.26 FTPW/kg to 6.6 FTPW/kg
 	('ftp_per_kilo_ish', 'h'),
 	('watts_20_min', 'h'), # = FTP / 0.95
 	('unknown_a', 'h'), # 0x0301 -> 0x0b01 (+0x0800) when sample rate changed to 1s. Never restored, though!
