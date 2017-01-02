@@ -67,9 +67,6 @@ Isaac detects device presence by looping "get serial number" and "get firmware v
 
 ## TODO / Roadmap
 
-* Add to powerpod-command:
-  * Get/set profile stuff:
-    * Units.
 * New stuff:
   * Figure out how to put the device into various cal modes.
   * Remaining fields in ride header.

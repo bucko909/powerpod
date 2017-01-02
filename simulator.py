@@ -17,9 +17,10 @@ class NewtonSimulator(threading.Thread):
 		self.protocol = None
 		self.profiles = None
 		self.current_profile = 0
-		self.odometer_distance = 0.0
-		self.reload = False
+		self.odometer_distance = 100.0
+		self.units_type = powerpod.SetUnitsCommand.METRIC
 		self.screens = [powerpod.NewtonProfileScreens.default() for _ in range(4)]
+		self.reload = False
 		self.init()
 
 	def do_reload(self):

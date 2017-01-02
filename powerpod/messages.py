@@ -250,14 +250,21 @@ class EraseAllCommand(StructCommand, namedtuple('EraseAllCommand', '')):
 
 
 
+class SetUnitsResponse(object):
+	@staticmethod
+	def from_simulator(command, simulator):
+		simulator.units_type = command.units_type
+		return None
+
 @add_command
 class SetUnitsCommand(StructCommand, namedtuple('SetUnitsCommand', 'units_type')):
 	IDENTIFIER = 0x0a
 	SHAPE = '<h'
-	RESPONSE = None
+	RESPONSE = SetUnitsResponse
 
 	METRIC = 1
 	ENGLISH = 0
+	LOOKUP = ('english', 'metric')
 
 
 
@@ -299,23 +306,23 @@ class SetSampleRateCommand(StructCommand, namedtuple('SetSampleRateCommand', 'un
 
 
 
-class GetOdometerResponse(StructType, namedtuple('GetOdometerResponse', 'unknown_0 unknown_1 unknown_2 distance_km')):
+class GetOdometerResponse(StructType, namedtuple('GetOdometerResponse', 'units_type unknown_1 unknown_2 distance_km')):
 	# TODO unknowns are observed at 1, 1, 0
 	SHAPE = '<hhhi'
 
 	def _encode(self):
-		return (self.unknown_0, self.unknown_1, self.unknown_2, int(round(self.distance_km * 10)),)
+		return (self.units_type, self.unknown_1, self.unknown_2, int(round(self.distance_km * 10)),)
 
 	@classmethod
-	def _decode(cls, unknown_0, unknown_1, unknown_2, distance):
-		assert unknown_0 == 1
+	def _decode(cls, units_type, unknown_1, unknown_2, distance):
+		assert units_type in (SetUnitsCommand.METRIC, SetUnitsCommand.ENGLISH)
 		assert unknown_1 == 1
 		assert unknown_2 == 0
-		return (unknown_0, unknown_1, unknown_2, distance * 0.1,)
+		return (units_type, unknown_1, unknown_2, distance * 0.1,)
 
 	@classmethod
 	def from_simulator(cls, _command, simulator):
-		return cls(1, 1, 0, simulator.odometer_distance)
+		return cls(simulator.units_type, 1, 0, simulator.odometer_distance)
 
 @add_command
 class GetOdometerCommand(StructCommand, namedtuple('GetOdometerCommand', '')):
