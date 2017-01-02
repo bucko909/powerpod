@@ -1,7 +1,10 @@
 from collections import namedtuple
+import logging
 import struct
 
 from .types import StructType, StructListType, NewtonTime, NewtonRideHeader, NewtonRide, NewtonProfile, NewtonProfileScreens
+
+LOGGER = logging.getLogger(__name__)
 
 class NewtonCommand(object):
 	MAP = {}
@@ -395,6 +398,14 @@ class SetProfileDataResponse(object):
 	@staticmethod
 	def from_simulator(command, simulator):
 		old = simulator.profiles[simulator.current_profile]
+		diff = {}
+		for key in command._fields:
+			if not hasattr(old, key):
+				diff[key] = (None, getattr(command, key))
+			elif getattr(command, key) != getattr(old, key):
+				diff[key] = (getattr(old, key), getattr(command, key))
+		if diff:
+			LOGGER.info("Setting profile: %r", diff)
 		new = old._replace(**{key: getattr(command, key) for key in command._fields if hasattr(old, key)})
 		simulator.profiles[simulator.current_profile] = new
 		return None
@@ -437,6 +448,14 @@ class SetProfileData2Response(object):
 	@staticmethod
 	def from_simulator(command, simulator):
 		old = simulator.profiles[simulator.current_profile]
+		diff = {}
+		for key in command._fields:
+			if not hasattr(old, key):
+				diff[key] = (None, getattr(command, key))
+			elif getattr(command, key) != getattr(old, key):
+				diff[key] = (getattr(old, key), getattr(command, key))
+		if diff:
+			LOGGER.info("Setting profile: %r", diff)
 		new = old._replace(**{key: getattr(command, key) for key in command._fields if hasattr(old, key)})
 		simulator.profiles[simulator.current_profile] = new
 		return None
