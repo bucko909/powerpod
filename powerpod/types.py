@@ -147,7 +147,7 @@ PROFILE_FIELDS = [
 	('rider_mass_lb', 'h'),
 	('unknown_9', 'h'),
 	('ftp_per_kilo_ish', 'h'),
-	('ftp_over_095', 'h'),
+	('watts_20_min', 'h'), # = FTP / 0.95
 	('unknown_a', 'h'), # 0x0301 -> 0x0b01 (+0x0800) when sample rate changed to 1s. Never restored, though!
 	('speed_id', 'H'),
 	('cadence_id', 'H'),
@@ -215,7 +215,7 @@ class NewtonProfile(StructType, namedtuple('NewtonProfile', zip(*PROFILE_FIELDS)
 				rider_mass_lb=180,
 				unknown_9=1803,
 				ftp_per_kilo_ish=1,
-				ftp_over_095=85,
+				watts_20_min=85,
 				unknown_a=769,
 				# ^^ SetProfileData
 				power_smoothing_seconds=1,
