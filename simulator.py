@@ -8,12 +8,12 @@ LOGGER = logging.getLogger(__name__)
 
 class NewtonSimulator(threading.Thread):
 	firmware_version = 6.12
-	serial_number = '-'.join(['00'] * 16)
-	def __init__(self, serial_connection=None):
+	def __init__(self, serial_number, serial_connection=None):
 		super(NewtonSimulator, self).__init__()
 		if serial_connection is None:
 			serial_connection = powerpod.NewtonSerialConnection()
 		self.serial_connection = serial_connection
+		self.serial_number = serial_number
 		self.protocol = None
 		self.profiles = None
 		self.current_profile = 0
@@ -64,6 +64,7 @@ class NewtonSimulator(threading.Thread):
 def arg_parser():
 	parser = argparse.ArgumentParser()
 	parser.add_argument('--port')
+	parser.add_argument('--serial-number', default='-'.join(['00'] * 16))
 	return parser
 
 def main():
@@ -72,7 +73,7 @@ def main():
 	kwargs = {}
 	if args.port is not None:
 		kwargs['serial_connection'] = powerpod.NewtonSerialConnection(port=args.port)
-	sim = NewtonSimulator(**kwargs)
+	sim = NewtonSimulator(serial_number=args.serial_number, **kwargs)
 	sim.run()
 
 if __name__ == '__main__':
