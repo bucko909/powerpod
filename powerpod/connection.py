@@ -1,6 +1,7 @@
 import logging
 import operator
 from socket import timeout
+from . import messages
 
 import serial
 
@@ -122,16 +123,23 @@ class NewtonSerialProtocol(object):
 		self.connection = connection
 		self.device_side = device_side
 
-	def read_packet(self):
+	def read_packet(self, allow_empty=False):
 		data = None
 		while True:
 			if data is not None:
 				LOGGER.warning("invalid_packet %r", data)
 				self.write_packet(InterruptPacket())
-			self.connection.timeout = None
+			if allow_empty:
+				self.connection.timeout = 5
+			else:
+				self.connection.timeout = None
 			data = self.connection.read(1)
+			if data == '':
+				assert allow_empty
+				return None
 			packet_type = Packet.PACKET_TYPES.get(data)
 			if packet_type is None:
+				LOGGER.debug("packet_type is None")
 				continue
 			self.connection.timeout = 0.1
 			while True:
@@ -141,6 +149,7 @@ class NewtonSerialProtocol(object):
 				data += self.connection.read(remain)
 			packet = packet_type.parse(data)
 			if packet is None:
+				LOGGER.debug("packet is None")
 				continue
 			LOGGER.debug("received_packet %r", packet)
 			return packet
@@ -231,8 +240,11 @@ class NewtonSerialProtocol(object):
 	def do_command(self, command):
 		self.write_message(command.to_binary())
 		if not hasattr(command.RESPONSE, 'from_binary'):
-			response = self.read_packet()
-			assert isinstance(response, CommandAckPacket), response
+			response = self.read_packet(allow_empty=True)
+			if response is None:
+				self.do_command(messages.GetSerialNumberCommand())
+			else:
+				assert isinstance(response, CommandAckPacket), response
 			return None
 		response_raw = self.read_message()
 		response = command.RESPONSE.from_binary(response_raw)
