@@ -250,7 +250,7 @@ class NewtonProfile(StructType, namedtuple('NewtonProfile', zip(*PROFILE_FIELDS)
 				user_edited=0x8008,
 				wheel_circumference_mm=2096,
 				sample_smoothing=10251,
-				aero=0.4889250099658966,
+				aero=0.4899250099658966,
 				fric=11.310999870300293,
 				unknown_6=0.0,
 				unknown_7=0.0,
