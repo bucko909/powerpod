@@ -125,11 +125,18 @@ PROFILE_FIELDS = [
 	# If I send 0x8009, I get 0x8009.
 	# If I send 0xffff, I get 0x8009.
 	# If I then set the 'user-edited' flag by messing with stuff, I get 0x8005.
+	# Reset to factory default -> 0x800c
+	# Save/load profile 0x800c -> 0x8009
+	# Mess with settings 0x8009 -> 0x8005
+	# Save/load profile 0x8005 -> 0x8009
+	# Factory default is actually recognised by model (aero/fric etc) values.
 	# On a pristine profile, I see 0x800e or 0x800d and it's reset to 0x8009 with just a get/set. On an old recording, I saw it reset to 0x8005 on a user-edit.
 	# Resetting the profile gets 0x800c. Setting it once (or running through setup) gets 0x800d.
-	# bit 0 = pristine-ness.
-	# bit 3 = clean-ness (unset when "User Edited").
-	# Conclusion: Nothing to see here, but user edited-ness.
+	# bit           0  1  2  3
+	# reset         0  0  1  1
+	# user-edited   1  0  1  0
+	# save/load     1  0  0  1
+	# TODO TODO TODO
 	('user_edited', 'H', {0x8009: False, 0x8005: True}),
 	('total_mass_lb', 'h'),
 	('wheel_circumference_mm', 'h'),
@@ -240,7 +247,7 @@ class NewtonProfile(StructType, namedtuple('NewtonProfile', zip(*PROFILE_FIELDS)
 	def default(cls):
 		return cls(
 				total_mass_lb=205,
-				user_edited=32780,
+				user_edited=0x8008,
 				wheel_circumference_mm=2096,
 				sample_smoothing=10251,
 				aero=0.4889250099658966,
