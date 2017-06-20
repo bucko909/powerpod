@@ -330,6 +330,11 @@ class NewtonRideData(object):
 		for name, value in zip(self.__slots__, args):
 			setattr(self, name, value)
 
+	@staticmethod
+	def byte_size():
+		# We are not a struct type, but we want to look like one.
+		return 15
+
 	@classmethod
 	def from_binary(cls, data):
 		if data.startswith('\xff\xff\xff\xff\xff\xff'):
